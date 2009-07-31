@@ -1,0 +1,28 @@
+'site' is a script that manages config files and starting/stopping/reloading services necessary to get a site activated or deactivated on the server.
+
+'cilantro' is a script that manages sinatra processes.
+
+site new fluidjs.com
++ creates all the configs you need, and stores them in your ~/SiteConfigs. You can edit them there at any time.
++ add the option "--thin" if you are using thin for this app.
+sudo site activate fluidjs.com
++ creates hard-links to your configs in appropriate places: /etc/nginx/sites-available/, /etc/haproxy/sites/, and /etc/thin/ (if applicable)
++ creates a symlink for nginx in sites-enabled
++ reloads nginx + haproxy
++ starts thin (if applicable) or cilantro (if applicable)
+sudo site deactivate fluidjs.com
++ removes symlink in sites-enabled
++ removes all hard-link'd configs from the system
++ reloads nginx + haproxy
++ stops thin (if applicable) or cilantro (if applicable)
+site remove fluidjs.com
++ deletes the configs from SiteConfigs, but complains if the site is currently activated
+
+Example commands, self-explanatory:
++ cilantro # assumes "run" command (runs sinatra in foreground) and current directory
++ cilantro start /path/to/app --port 5555
++ cilantro stop /path/to/app # stops all services in that app
++ cilantro stop /path/to/app --port 5555 # stops only the service running on port 5555
++ cilantro start # assumes current directory, complains if it doesn't find a config/init.rb
++ cilantro stop # assumes current directory, stops all services
++ cilantro status # (with any other typical arguments) lists services and their ports
