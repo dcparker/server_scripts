@@ -18,7 +18,7 @@ sudo site deactivate fluidjs.com
 site remove fluidjs.com
 * deletes the configs from SiteConfigs, but complains if the site is currently activated
 
-h1. 'cilantro' sinatra services.
+h1. 'cilantro' manages processes for sinatra sites.
 
 Example commands, self-explanatory:
 * cilantro # assumes "run" command (runs sinatra in foreground) and current directory
