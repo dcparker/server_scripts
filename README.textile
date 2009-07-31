@@ -1,4 +1,6 @@
-h1. 'site' is a script that manages config files and starting/stopping/reloading services necessary to get a site activated or deactivated on the server.
+h1. 'site' manages sites.
+
+h2. Generates config files and operates services to get a site activated or deactivated on the server.
 
 site new fluidjs.com
 * creates all the configs you need, and stores them in your ~/SiteConfigs. You can edit them there at any time.
@@ -16,7 +18,7 @@ sudo site deactivate fluidjs.com
 site remove fluidjs.com
 * deletes the configs from SiteConfigs, but complains if the site is currently activated
 
-h1. 'cilantro' is a script that manages sinatra processes.
+h1. 'cilantro' sinatra services.
 
 Example commands, self-explanatory:
 * cilantro # assumes "run" command (runs sinatra in foreground) and current directory

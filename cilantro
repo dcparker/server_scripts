@@ -94,7 +94,7 @@ if (options[:config] || (!options[:specified_port] && File.exists?("#{directory}
   config = File.read(options[:config] || "#{directory}/config/cilantro.run")
   # Currently all we read is a list of ports to run it on.
   ports = config.split(/\n/).collect {|line| line.gsub(/\D/,'').to_i}.select {|line| line > 0}
-  options[:port] = ports.pop
+  options[:port] = ports.pop unless ports.empty? # if no ports specified, we'll continue with the default port 5000
   # Then we need to start a few more starter processes if there are more ports to run on
   ports.each do |port|
     system "#{$0} #{action} \"#{directory}\" --port #{port}#{' --verbose' if options[:verbose]}"
