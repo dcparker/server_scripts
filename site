@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'ftools'
+require 'yaml'
 
 File.makedirs("#{ENV['HOME']}/SiteConfigs")
 Dir.chdir("#{ENV['HOME']}/SiteConfigs")
@@ -101,15 +102,17 @@ when 'activate'
   system("sudo ln #{home}/SiteConfigs/#{file_domain}-thin.yml /etc/thin/#{domain}-thin.yml") if File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
   # 4) hardlink it into /etc/haproxy/sites
   system("sudo ln #{home}/SiteConfigs/#{file_domain}.cfg /etc/haproxy/sites/#{domain}.cfg")
-  if File.exists?("#{home}/apps/#{domain}/config/cilantro.run")
+  if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
     iterator = file_domain.match(/^(\d+)/)[1].to_i
     ports = []
     ports[0] = 6001 + iterator*10
     ports[1] = ports[0]+1
     ports[2] = ports[1]+1
     ports[3] = ports[2]+1
-    File.open("#{home}/apps/#{domain}/config/cilantro.run", 'w') do |cilantro|
-      cilantro << ports.join("\n")
+    config = YAML.load_file(options[:config] || "#{home}/apps/#{domain}/config/cilantro.yml")
+    config[:ports] = ports
+    File.open("#{home}/apps/#{domain}/config/cilantro.yml", 'w') do |cilantro|
+      cilantro << config.to_yaml
     end
   end
 
@@ -119,7 +122,7 @@ when 'activate'
   system("sudo /etc/init.d/nginx reload")
   # 7) Start services that run this app
     # Cilantro
-    system("sudo cilantro start #{home}/apps/#{domain}") if File.exists?("#{home}/apps/#{domain}/config/cilantro.run")
+    system("sudo cilantro start #{home}/apps/#{domain}") if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
     # Thin
     system("sudo thin start --config /etc/thin/#{domain}-thin.yml") if File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
 when 'deactivate'
@@ -135,7 +138,7 @@ when 'deactivate'
   system("sudo /etc/init.d/haproxy reload")
   # 4) Stop any services running this app
     # Cilantro
-    system("sudo cilantro stop #{home}/apps/#{domain}") if File.exists?("#{home}/apps/#{domain}/config/cilantro.run")
+    system("sudo cilantro stop #{home}/apps/#{domain}") if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
     # Thin
     system("sudo thin stop --config /etc/thin/#{domain}-thin.yml") if File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
 end

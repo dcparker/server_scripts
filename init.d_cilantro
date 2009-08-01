@@ -1,0 +1,83 @@
+#!/bin/sh
+
+### BEGIN INIT INFO
+# Provides:          cilantro
+# Required-Start:    $network
+# Required-Stop:     $network
+# Default-Start:     2 3 4 5 
+# Default-Stop:      0 1 6 
+# Short-Description: Start cilantro sites at boot time 
+# Description:       Starts cilantro sites at boot time
+### END INIT INFO
+
+# Author: Daniel Parker
+
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+CILANTRO=/usr/local/bin/cilantro
+SITES_LOCATION=/home/dcparker/apps/*
+
+test -x $CILANTRO || exit 0
+
+. /lib/lsb/init-functions
+
+APPS=
+for app in $SITES_LOCATION; do
+  if [ -f $app/config/cilantro.yml ]; then
+    APPS="$APPS $app"
+  fi
+done
+
+cilantro_start()
+{
+  for app in $APPS; do
+    $CILANTRO start $app
+  done
+}
+
+cilantro_stop()
+{
+  for app in $APPS; do
+    $CILANTRO stop $app
+  done
+}
+
+cilantro_status()
+{
+  for app in $APPS; do
+    $CILANTRO status $app
+  done
+}
+
+cilantry_reload()
+{
+  echo "Not yet implemented."
+}
+
+case "$1" in
+start)
+  log_daemon_msg "Starting cilantro apps"
+  cilantro_start
+  exit 0
+  ;;
+stop)
+  log_daemon_msg "Stopping cilantro apps"
+  cilantro_stop
+  exit 0
+  ;;
+restart)
+  log_daemon_msg "Stopping cilantro apps"
+  cilantro_stop
+  cilantro_start
+  exit 0
+  ;;
+status)
+  cilantro_status
+  exit 0
+  ;;
+*)
+  echo "Usage: /home/dcparker/init.d/cilantro {start|stop|restart|status}"
+  exit 2
+  ;;
+esac
+
+:

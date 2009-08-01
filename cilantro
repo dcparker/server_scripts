@@ -43,6 +43,31 @@ def redirect_io(logfile_name)
   STDERR.sync = true
 end
 
+def run_the_app
+  begin
+    require 'config/init'
+    Sinatra::Application.run!
+  rescue => e
+    # Make the magic happen!
+    # (jabber me when there's an error loading an app)
+    if File.exists?('config/notify.yml')
+      jabber = YAML.load_file('config/notify.yml')
+      begin
+        require 'xmpp4r'
+        client = Jabber::Client.new(Jabber::JID.new("#{jabber[:username]}/cilantro"))
+        client.connect('talk.google.com', '5222')
+        client.auth(jabber[:password])
+        client.send(Jabber::Presence.new.set_type(:available))
+        msg = Jabber::Message.new(jabber[:notify], "#{e.inspect}\n#{e.backtrace.join("\n")}")
+        msg.type = :chat
+        client.send(msg)
+        client.close
+      rescue
+      end
+    end
+  end
+end
+
 options = {}
 
 optparse = OptionParser.new do |opts|
@@ -90,10 +115,10 @@ if directory == '.'
   directory = Dir.pwd
 end
 
-if (options[:config] || (!options[:specified_port] && File.exists?("#{directory}/config/cilantro.run"))) && action =~ /start/
-  config = File.read(options[:config] || "#{directory}/config/cilantro.run")
-  # Currently all we read is a list of ports to run it on.
-  ports = config.split(/\n/).collect {|line| line.gsub(/\D/,'').to_i}.select {|line| line > 0}
+if (options[:config] || (!options[:specified_port] && File.exists?("#{directory}/config/cilantro.yml"))) && action =~ /start/
+  require 'yaml'
+  config = YAML.load_file(options[:config] || "#{directory}/config/cilantro.yml")
+  ports = config[:ports]
   options[:port] = ports.pop unless ports.empty? # if no ports specified, we'll continue with the default port 5000
   # Then we need to start a few more starter processes if there are more ports to run on
   ports.each do |port|
@@ -110,7 +135,7 @@ when 'run'
     require 'rubygems'
     require 'sinatra'
     Sinatra::Application.set :port, options[:port]
-    require 'config/init'
+    run_the_app
   else
     puts "ERROR: #{directory} doesn't seem to be a Cilantro directory (missing config/init.rb)"
     exit
@@ -162,7 +187,7 @@ when 'start'
     require 'sinatra'
     Sinatra::Application.set :run, Proc.new { true }
     Sinatra::Application.set :port, options[:port]
-    require 'config/init'
+    run_the_app
   else
     puts "ERROR: #{directory} doesn't seem to be a Cilantro directory (missing config/init.rb)"
     exit
