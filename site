@@ -35,9 +35,9 @@ optparse = OptionParser.new do |opts|
 
 end
 
-fail "Usage: site (new|activate|deactivate) domain.com" if ARGV.length < 2
 action = ARGV[0]
 domain = ARGV[1]
+fail "Usage: site (new|activate|deactivate) domain.com" if ARGV.length < 2 && action != 'list'
 home   = ENV['HOME']
 
 matches = Dir.glob("*-#{domain}")
@@ -141,4 +141,7 @@ when 'deactivate'
     system("sudo cilantro stop #{home}/apps/#{domain}") if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
     # Thin
     system("sudo thin stop --config /etc/thin/#{domain}-thin.yml") if File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
+when 'list'
+  matches = Dir.glob("*.cfg").select {|ha| ha =~ /^\d+-/}.collect {|ha| ha.match(/^\d+-(.+)\.cfg$/)[1]}
+  puts "Managed Sites:\n\t#{matches.join("\n\t")}"
 end

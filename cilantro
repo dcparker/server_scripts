@@ -118,22 +118,27 @@ end
 if (options[:config] || (!options[:specified_port] && File.exists?("#{directory}/config/cilantro.yml"))) && action =~ /start/
   require 'yaml'
   config = YAML.load_file(options[:config] || "#{directory}/config/cilantro.yml")
-  ports = config[:ports]
-  options[:port] = ports.pop unless ports.empty? # if no ports specified, we'll continue with the default port 5000
-  # Then we need to start a few more starter processes if there are more ports to run on
-  ports.each do |port|
-    system "#{$0} #{action} \"#{directory}\" --port #{port}#{' --verbose' if options[:verbose]}"
+  if config.is_a?(Hash)
+    ports = config[:ports]
+    options[:port] = ports.pop unless ports.empty? # if no ports specified, we'll continue with the default port 5000
+    # Then we need to start a few more starter processes if there are more ports to run on
+    ports.each do |port|
+      system "#{$0} #{action} \"#{directory}\" --port #{port}#{' --verbose' if options[:verbose]}"
+    end
   end
 end
 
 # Start our stuff
 Dir.chdir(directory)
 
+puts "Here"
+
 case action
 when 'run'
   if File.exists?('config/init.rb')
     require 'rubygems'
     require 'sinatra'
+    Sinatra::Application.set :run, Proc.new { false }
     Sinatra::Application.set :port, options[:port]
     run_the_app
   else
@@ -185,7 +190,7 @@ when 'start'
 
     require 'rubygems'
     require 'sinatra'
-    Sinatra::Application.set :run, Proc.new { true }
+    Sinatra::Application.set :run, Proc.new { false }
     Sinatra::Application.set :port, options[:port]
     run_the_app
   else
