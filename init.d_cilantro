@@ -75,7 +75,7 @@ status)
   exit 0
   ;;
 *)
-  echo "Usage: /home/dcparker/init.d/cilantro {start|stop|restart|status}"
+  echo "Usage: /etc/init.d/cilantro {start|stop|restart|status}"
   exit 2
   ;;
 esac
