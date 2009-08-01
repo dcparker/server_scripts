@@ -131,8 +131,6 @@ end
 # Start our stuff
 Dir.chdir(directory)
 
-puts "Here"
-
 case action
 when 'run'
   if File.exists?('config/init.rb')
