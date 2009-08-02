@@ -130,6 +130,7 @@ end
 
 # Start our stuff
 Dir.chdir(directory)
+write_dir = File.directory?('log') ? 'log' : 'config'
 
 case action
 when 'run'
@@ -176,14 +177,14 @@ when 'start'
     end
     $process_id = Process.pid
 
-    redirect_io(File.directory?('log') ? "log/cilantro.#{options[:port]}.log" : "config/cilantro.#{options[:port]}.log")
+    redirect_io("#{write_dir}/cilantro.#{options[:port]}.log")
 
-    File.open("config/cilantro.#{$process_id}.pid", 'w') do |pidfile|
+    File.open("#{write_dir}/cilantro.#{$process_id}.pid", 'w') do |pidfile|
       pidfile << options[:port]
     end
 
     at_exit {
-      File.delete("config/cilantro.#{$process_id}.pid")
+      File.delete("#{write_dir}/cilantro.#{$process_id}.pid")
     }
 
     require 'rubygems'
@@ -197,7 +198,7 @@ when 'start'
   end
 when 'status'
   count = 0
-  pidfiles = Dir.glob("config/cilantro.*.pid")
+  pidfiles = Dir.glob("#{write_dir}/cilantro.*.pid")
   pidfiles.each do |pidfile|
     pid = pidfile.match(/(\d+)/)[0]
     port = File.read(pidfile).chomp
@@ -209,7 +210,7 @@ when 'status'
   puts "#{count} Cilantro running for #{directory}."
 when 'stop'
   count = 0
-  pidfiles = Dir.glob("config/cilantro.*.pid")
+  pidfiles = Dir.glob("#{write_dir}/cilantro.*.pid")
   pidfiles.each do |pidfile|
     pid = pidfile.match(/(\d+)/)[0]
     port = File.read(pidfile).chomp

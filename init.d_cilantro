@@ -13,6 +13,7 @@
 # Author: Daniel Parker
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
+RUN_AS="sudo -u www-data"
 CILANTRO=/usr/local/bin/cilantro
 SITES_LOCATION=/home/dcparker/apps/*
 
@@ -30,21 +31,21 @@ done
 cilantro_start()
 {
   for app in $APPS; do
-    $CILANTRO start $app
+    $RUN_AS $CILANTRO start $app
   done
 }
 
 cilantro_stop()
 {
   for app in $APPS; do
-    $CILANTRO stop $app
+    $RUN_AS $CILANTRO stop $app
   done
 }
 
 cilantro_status()
 {
   for app in $APPS; do
-    $CILANTRO status $app
+    $RUN_AS $CILANTRO status $app
   done
 }
 
