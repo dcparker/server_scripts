@@ -1,0 +1,25 @@
+#!/usr/bin/env ruby
+
+# One idea:
+# Use pre-receive. Exit with a non-zero status to abort and not allow data to be committed.
+# The git repo is not where the app is. So, what we want to do is check out the app to some sandbox location and try to run it on a sandboxed port.
+# If this succeeds, allow the commit. If not, disallow the commit and abort the push. In the meantime, we can also print some nice status lines.
+
+# Simple method:
+# Use post-receive. Check out the repo into an executable location (/home/dcparker/apps), create configs if necessary and activate it.
+
+domain = Dir.pwd.match(/\/([^\/]+)\.git/)[1]
+app_dir = "/home/dcparker/apps/#{domain}"
+
+if File.exists?(app_dir)
+  # Update the app
+  #   git rebase origin master
+  #   # site restart #{domain}
+  system "curl 'http://0.0.0.0:6009/update_app?domain=#{domain}'"
+else
+  # Create the app if it doesn't exist
+  #   git clone /home/git/repositories/#{domain}.git #{app_dir}
+  #   # update config/cilantro.yml from /home/dcparker/SiteConfigs/global_auto_config.yml
+  #   site new #{domain}
+  system "curl 'http://0.0.0.0:6009/create_app?domain=#{domain}'"
+end

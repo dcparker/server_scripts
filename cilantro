@@ -26,8 +26,8 @@ def safefork
 end
 
 def redirect_io(logfile_name)
-  begin; STDIN.reopen "/dev/null"; rescue ::Exception; end       
-   
+  begin; STDIN.reopen "/dev/null"; rescue ::Exception; end
+
   if logfile_name
     begin
       STDOUT.reopen logfile_name, "a"
@@ -38,33 +38,41 @@ def redirect_io(logfile_name)
   else
     begin; STDOUT.reopen "/dev/null"; rescue ::Exception; end
   end
-  
+
   begin; STDERR.reopen STDOUT; rescue ::Exception; end
   STDERR.sync = true
+end
+
+def report_error(e)
+  # Make the magic happen!
+  # (jabber me when there's an error loading an app)
+  if File.exists?('config/cilantro.yml')
+    jabber = YAML.load_file('config/cilantro.yml')
+    begin
+      require 'xmpp4r'
+      client = Jabber::Client.new(Jabber::JID.new("#{jabber[:username]}/cilantro"))
+      client.connect('talk.google.com', '5222')
+      client.auth(jabber[:password])
+      client.send(Jabber::Presence.new.set_type(:available))
+      msg = Jabber::Message.new(jabber[:notify], "#{e.inspect}\n#{e.backtrace.join("\n")}")
+      msg.type = :chat
+      client.send(msg)
+      client.close
+    rescue => e
+      puts "UGLY ERROR!"
+    end
+  end
 end
 
 def run_the_app
   begin
     require 'config/init'
+    Sinatra::Application.set :environment, $config[:environment] if $config[:environment]
     Sinatra::Application.run!
+  rescue SyntaxError => e
+    report_error(e)
   rescue => e
-    # Make the magic happen!
-    # (jabber me when there's an error loading an app)
-    if File.exists?('config/notify.yml')
-      jabber = YAML.load_file('config/notify.yml')
-      begin
-        require 'xmpp4r'
-        client = Jabber::Client.new(Jabber::JID.new("#{jabber[:username]}/cilantro"))
-        client.connect('talk.google.com', '5222')
-        client.auth(jabber[:password])
-        client.send(Jabber::Presence.new.set_type(:available))
-        msg = Jabber::Message.new(jabber[:notify], "#{e.inspect}\n#{e.backtrace.join("\n")}")
-        msg.type = :chat
-        client.send(msg)
-        client.close
-      rescue
-      end
-    end
+    report_error(e)
   end
 end
 
@@ -85,9 +93,9 @@ optparse = OptionParser.new do |opts|
   end
 
   options[:config] = nil
-  opts.on( '-c', '--config CONFIG', "Use config file CONFIG" ) do |config|
-    raise if !File.exists?(config)
-    options[:config] = config
+  opts.on( '-c', '--config CONFIG', "Use config file CONFIG" ) do |conf|
+    raise if !File.exists?(conf)
+    options[:config] = conf
   end
 
   opts.on( '-h', '--help', 'Display this screen' ) do
@@ -115,11 +123,12 @@ if directory == '.'
   directory = Dir.pwd
 end
 
+ports = []
+require 'yaml'
+$config = YAML.load_file(options[:config] || "#{directory}/config/cilantro.yml") || {}
 if (options[:config] || (!options[:specified_port] && File.exists?("#{directory}/config/cilantro.yml"))) && action =~ /start/
-  require 'yaml'
-  config = YAML.load_file(options[:config] || "#{directory}/config/cilantro.yml")
-  if config.is_a?(Hash)
-    ports = config[:ports]
+  if $config.is_a?(Hash)
+    ports = $config[:ports]
     options[:port] = ports.pop unless ports.empty? # if no ports specified, we'll continue with the default port 5000
     # Then we need to start a few more starter processes if there are more ports to run on
     ports.each do |port|
@@ -149,6 +158,7 @@ when 'start'
   #   - config/init
   if File.exists?('config/init.rb')
     puts "[START] Cilantro app in #{directory} on port #{options[:port]}..."
+    puts "Started #{ports.length+1} Cilantro services." unless ports.empty?
 
     # Fork to a daemon now...
     srand # Split rand streams between spawning and daemonized process
