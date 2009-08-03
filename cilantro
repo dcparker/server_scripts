@@ -58,22 +58,18 @@ def report_error(e)
       msg.type = :chat
       client.send(msg)
       client.close
-    rescue => e
-      puts "UGLY ERROR!"
+    rescue => f
+      raise f
     end
+  else
+    raise e
   end
 end
 
 def run_the_app
-  begin
-    require 'config/init'
-    Sinatra::Application.set :environment, $config[:environment] if $config[:environment]
-    Sinatra::Application.run!
-  rescue SyntaxError => e
-    report_error(e)
-  rescue => e
-    report_error(e)
-  end
+  require 'config/init'
+  Sinatra::Application.set :environment, $config[:environment] if $config[:environment]
+  Sinatra::Application.run!
 end
 
 options = {}
@@ -125,7 +121,15 @@ end
 
 ports = []
 require 'yaml'
-$config = YAML.load_file(options[:config] || "#{directory}/config/cilantro.yml") || {}
+$config = case
+when options[:config]
+  YAML.load_file(options[:config])
+when File.exists?("#{directory}/config/cilantro.yml")
+  YAML.load_file("#{directory}/config/cilantro.yml")
+else
+  {}
+end
+  
 if (options[:config] || (!options[:specified_port] && File.exists?("#{directory}/config/cilantro.yml"))) && action =~ /start/
   if $config.is_a?(Hash)
     ports = $config[:ports]
@@ -141,96 +145,104 @@ end
 Dir.chdir(directory)
 write_dir = File.directory?('log') ? 'log' : 'config'
 
-case action
-when 'run'
-  if File.exists?('config/init.rb')
-    require 'rubygems'
-    require 'sinatra'
-    Sinatra::Application.set :run, Proc.new { false }
-    Sinatra::Application.set :port, options[:port]
-    run_the_app
-  else
-    puts "ERROR: #{directory} doesn't seem to be a Cilantro directory (missing config/init.rb)"
-    exit
-  end
-when 'start'
-  # Check whether environment is sane...
-  #   - config/init
-  if File.exists?('config/init.rb')
-    puts "[START] Cilantro app in #{directory} on port #{options[:port]}..."
-    puts "Started #{ports.length+1} Cilantro services." unless ports.empty?
-
-    # Fork to a daemon now...
-    srand # Split rand streams between spawning and daemonized process
-    safefork and exit # Fork and exit from the parent
-    # Detach from the controlling terminal
-    unless sess_id = Process.setsid
-      raise Daemons.RuntimeException.new('cannot detach from controlling terminal')
+begin
+  case action
+  when 'run'
+    if File.exists?('config/init.rb')
+      require 'rubygems'
+      require 'sinatra'
+      Sinatra::Application.set :run, Proc.new { false }
+      Sinatra::Application.set :port, options[:port]
+      run_the_app
+    else
+      puts "ERROR: #{directory} doesn't seem to be a Cilantro directory (missing config/init.rb)"
+      exit
     end
-    # Prevent the possibility of acquiring a controlling terminal
-    #if oldmode.zero?
-      trap 'SIGHUP', 'IGNORE'
-      safefork and exit
-    #end
-    $0 = "cilantro [#{options[:port]}]"
-    File.umask 0000 # Insure sensible umask
-    # Make sure all file descriptors are closed
-    ObjectSpace.each_object(IO) do |io|
-      unless [STDIN, STDOUT, STDERR].include?(io)
-        begin
-          unless io.closed?
-            io.close
+  when 'start'
+    # Check whether environment is sane...
+    #   - config/init
+    if File.exists?('config/init.rb')
+      puts "[START] Cilantro app in #{directory} on port #{options[:port]}..."
+      puts "Started #{ports.length+1} Cilantro services." unless ports.empty?
+
+      # Fork to a daemon now...
+      srand # Split rand streams between spawning and daemonized process
+      safefork and exit # Fork and exit from the parent
+      # Detach from the controlling terminal
+      unless sess_id = Process.setsid
+        raise Daemons.RuntimeException.new('cannot detach from controlling terminal')
+      end
+      # Prevent the possibility of acquiring a controlling terminal
+      #if oldmode.zero?
+        trap 'SIGHUP', 'IGNORE'
+        safefork and exit
+      #end
+      $0 = "cilantro [#{options[:port]}]"
+      File.umask 0000 # Insure sensible umask
+      # Make sure all file descriptors are closed
+      ObjectSpace.each_object(IO) do |io|
+        unless [STDIN, STDOUT, STDERR].include?(io)
+          begin
+            unless io.closed?
+              io.close
+            end
+          rescue ::Exception
           end
-        rescue ::Exception
         end
       end
+      $process_id = Process.pid
+
+      redirect_io("#{write_dir}/cilantro.#{options[:port]}.log")
+
+      File.open("#{write_dir}/cilantro.#{$process_id}.pid", 'w') do |pidfile|
+        pidfile << options[:port]
+      end
+
+      at_exit {
+        File.delete("#{write_dir}/cilantro.#{$process_id}.pid")
+      }
+
+      require 'rubygems'
+      require 'sinatra'
+      Sinatra::Application.set :run, Proc.new { false }
+      Sinatra::Application.set :port, options[:port]
+      run_the_app
+    else
+      puts "ERROR: #{directory} doesn't seem to be a Cilantro directory (missing config/init.rb)"
+      exit
     end
-    $process_id = Process.pid
-
-    redirect_io("#{write_dir}/cilantro.#{options[:port]}.log")
-
-    File.open("#{write_dir}/cilantro.#{$process_id}.pid", 'w') do |pidfile|
-      pidfile << options[:port]
+  when 'status'
+    count = 0
+    pidfiles = Dir.glob("#{write_dir}/cilantro.*.pid")
+    pidfiles.each do |pidfile|
+      pid = pidfile.match(/(\d+)/)[0]
+      port = File.read(pidfile).chomp
+      if options[:port] == port || !options[:specified_port]
+        puts "[STATUS] Cilantro app running on port #{port}..."
+        count += 1
+      end
     end
-
-    at_exit {
-      File.delete("#{write_dir}/cilantro.#{$process_id}.pid")
-    }
-
-    require 'rubygems'
-    require 'sinatra'
-    Sinatra::Application.set :run, Proc.new { false }
-    Sinatra::Application.set :port, options[:port]
-    run_the_app
-  else
-    puts "ERROR: #{directory} doesn't seem to be a Cilantro directory (missing config/init.rb)"
-    exit
+    puts "#{count} Cilantro running for #{directory}."
+  when 'stop'
+    count = 0
+    pidfiles = Dir.glob("#{write_dir}/cilantro.*.pid")
+    pidfiles.each do |pidfile|
+      pid = pidfile.match(/(\d+)/)[0]
+      port = File.read(pidfile).chomp
+      if options[:port] == port || !options[:specified_port]
+        puts "[STOP] Cilantro app in #{directory} on port #{port}..."
+        Process.kill("INT", pid.to_i)
+        count += 1
+      end
+    end
+    puts "Stopped #{count} Cilantro services."
+  when 'restart'
+    puts "sorry, not yet implemented...\n\nWhat I want here is to restart all cilantro services that match the commandline specifications, but each with the full options they started with."
   end
-when 'status'
-  count = 0
-  pidfiles = Dir.glob("#{write_dir}/cilantro.*.pid")
-  pidfiles.each do |pidfile|
-    pid = pidfile.match(/(\d+)/)[0]
-    port = File.read(pidfile).chomp
-    if options[:port] == port || !options[:specified_port]
-      puts "[STATUS] Cilantro app running on port #{port}..."
-      count += 1
-    end
-  end
-  puts "#{count} Cilantro running for #{directory}."
-when 'stop'
-  count = 0
-  pidfiles = Dir.glob("#{write_dir}/cilantro.*.pid")
-  pidfiles.each do |pidfile|
-    pid = pidfile.match(/(\d+)/)[0]
-    port = File.read(pidfile).chomp
-    if options[:port] == port || !options[:specified_port]
-      puts "[STOP] Cilantro app in #{directory} on port #{port}..."
-      Process.kill("INT", pid.to_i)
-      count += 1
-    end
-  end
-  puts "Stopped #{count} Cilantro services."
-when 'restart'
-  puts "sorry, not yet implemented...\n\nWhat I want here is to restart all cilantro services that match the commandline specifications, but each with the full options they started with."
+rescue SyntaxError => e
+  puts "Error: #{e}"
+  report_error(e)
+rescue => e
+  puts "Error: #{e}"
+  report_error(e)
 end

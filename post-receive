@@ -9,17 +9,25 @@
 # Use post-receive. Check out the repo into an executable location (/home/dcparker/apps), create configs if necessary and activate it.
 
 domain = Dir.pwd.match(/\/([^\/]+)\.git/)[1]
-app_dir = "/home/dcparker/apps/#{domain}"
+app_dir = "/home/git/apps/#{domain}"
 
+# if app is not there, create it; otherwise update it
 if File.exists?(app_dir)
-  # Update the app
-  #   git rebase origin master
-  #   # site restart #{domain}
-  system "curl 'http://0.0.0.0:6009/update_app?domain=#{domain}'"
+  Dir.chdir(app_dir)
+  system("git pull --rebase")
 else
-  # Create the app if it doesn't exist
-  #   git clone /home/git/repositories/#{domain}.git #{app_dir}
-  #   # update config/cilantro.yml from /home/dcparker/SiteConfigs/global_auto_config.yml
-  #   site new #{domain}
-  system "curl 'http://0.0.0.0:6009/create_app?domain=#{domain}'"
+  system("git clone /home/git/repositories/#{domain}.git #{app_dir}")
+  Dir.chdir(app_dir)
+  system("mkdir log")
+  system("cp /home/git/defaults/cilantro.yml config/cilantro.yml")
+end
+
+# if site configs don't exist, create them; otherwise just restart the app
+if `sudo site list` =~ /#{domain}/
+  # Update and restart the app
+  system("sudo site restart #{domain}")
+else
+  # Create and activate the app if it doesn't exist
+  system("sudo site new #{domain}")
+  system("sudo site activate #{domain}")
 end
