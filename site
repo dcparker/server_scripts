@@ -28,7 +28,7 @@ end
 require 'optparse'
 options = {}
 optparse = OptionParser.new do |opts|
-  opts.banner = "Usage: site (new|activate|deactivate) domain.com"
+  opts.banner = "Usage: site (new|activate|deactivate|list|restart) domain.com"
 
   # options[:verbose] = false
   # opts.on( '-v', '--verbose', "Show me what you're doing" ) do
@@ -44,8 +44,11 @@ end
 
 action = ARGV[0]
 domain = ARGV[1]
-fail "Usage: site (new|activate|deactivate) domain.com" if ARGV.length < 2 && action != 'list'
-home   = ENV['HOME']
+if ARGV.length < 2 && action != 'list'
+  puts optparse
+  exit
+end
+home = ENV['HOME']
 
 matches = Dir.glob("*-#{domain}")
 file_domain = matches[0] if matches.length > 0
@@ -158,9 +161,14 @@ when 'list'
   puts "Managed Sites:\n\t#{matches.join("\n\t")}"
 when 'restart'
   # Cilantro
-  system("cilantro stop #{home}/apps/#{domain}") if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
-  system("cilantro start #{home}/apps/#{domain}") if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
+  if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
+    system("cilantro stop #{home}/apps/#{domain}")
+    sleep 0.5
+    system("cilantro start #{home}/apps/#{domain}")
+  end
   # Thin
-  system("thin stop --config /etc/thin/#{domain}-thin.yml") if File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
-  system("thin start --config /etc/thin/#{domain}-thin.yml") if File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
+  if File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
+    system("thin stop --config /etc/thin/#{domain}-thin.yml")
+    system("thin start --config /etc/thin/#{domain}-thin.yml")
+  end
 end

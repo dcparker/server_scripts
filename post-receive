@@ -8,7 +8,7 @@
 # Simple method:
 # Use post-receive. Check out the repo into an executable location (/home/dcparker/apps), create configs if necessary and activate it.
 
-domain = Dir.pwd.match(/\/([^\/]+)\.git/)[1]
+domain = File.expand_path(File.dirname(__FILE__)).match(/\/([^\/]+)\.git/)[1]
 app_dir = "/home/git/apps/#{domain}"
 puts "In #{domain}..."
 

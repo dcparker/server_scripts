@@ -83,6 +83,12 @@ optparse = OptionParser.new do |opts|
     options[:verbose] = true
   end
 
+  options[:host] = '0.0.0.0'
+  opts.on('--host', "Listen on host HOST (default ALL:0.0.0.0)") do |host|
+    options[:host] = host
+    options[:specified_host] = true
+  end
+
   options[:port] = 5000
   opts.on( '-p', '--port PORT', "Listen on port PORT (default 5000)" ) do |port|
     options[:port] = port
@@ -133,11 +139,12 @@ end
   
 if (options[:config] || (!options[:specified_port] && File.exists?("#{directory}/config/cilantro.yml"))) && action =~ /start/
   if $config.is_a?(Hash)
+    options[:host] = $config[:host] if $config.has_key?(:host) && !options[:specified_host]
     ports = $config[:ports] || []
     options[:port] = ports.pop unless ports.empty? # if no ports specified, we'll continue with the default port 5000
     # Then we need to start a few more starter processes if there are more ports to run on
     ports.each do |port|
-      system "#{$0} #{action} \"#{directory}\" --port #{port}#{' --verbose' if options[:verbose]}"
+      system "#{$0} #{action} \"#{directory}\" --host #{options[:host]} --port #{port}#{' --verbose' if options[:verbose]}"
     end
   end
 end
@@ -153,6 +160,7 @@ begin
       require 'rubygems'
       require 'sinatra'
       Sinatra::Application.set :run, Proc.new { false }
+      Sinatra::Application.set :host, options[:host]
       Sinatra::Application.set :port, options[:port]
       run_the_app
     else
@@ -164,7 +172,7 @@ begin
       pid = pidfile.match(/(\d+)/)[0]
       port = File.read(pidfile).chomp
       if options[:port].to_s == port.to_s
-        puts "[WARN] Cilantro app already running on port #{port}!"
+        puts "[WARN] Cilantro app already running on #{port}!"
         exit
       end
     end
@@ -172,7 +180,7 @@ begin
     # Check whether environment is sane...
     #   - config/init
     if File.exists?('config/init.rb')
-      puts "[START] Cilantro app in #{directory} on port #{options[:port]}..."
+      puts "[START] Cilantro app in #{directory} on port #{options[:host]}:#{options[:port]}..."
       puts "Started #{ports.length+1} Cilantro services." unless ports.empty?
 
       # Fork to a daemon now...
@@ -215,6 +223,7 @@ begin
       require 'rubygems'
       require 'sinatra'
       Sinatra::Application.set :run, Proc.new { false }
+      Sinatra::Application.set :host, options[:host]
       Sinatra::Application.set :port, options[:port]
       run_the_app
     else
