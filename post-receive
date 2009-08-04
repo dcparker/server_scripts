@@ -10,24 +10,31 @@
 
 domain = Dir.pwd.match(/\/([^\/]+)\.git/)[1]
 app_dir = "/home/git/apps/#{domain}"
+puts "In #{domain}..."
 
 # if app is not there, create it; otherwise update it
 if File.exists?(app_dir)
+  puts "Updating application..."
   Dir.chdir(app_dir)
-  system("git pull --rebase")
+  system("git --git-dir=.git pull")
 else
+  puts "Creating application..."
   system("git clone /home/git/repositories/#{domain}.git #{app_dir}")
   Dir.chdir(app_dir)
   system("mkdir log")
+  system("chmod 777 log")
   system("cp /home/git/defaults/cilantro.yml config/cilantro.yml")
 end
 
 # if site configs don't exist, create them; otherwise just restart the app
 if `sudo site list` =~ /#{domain}/
   # Update and restart the app
+  puts "Restarting the application..."
+  system("sudo site activate #{domain}")
   system("sudo site restart #{domain}")
 else
   # Create and activate the app if it doesn't exist
   system("sudo site new #{domain}")
+  puts "Starting the application..."
   system("sudo site activate #{domain}")
 end

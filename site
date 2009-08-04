@@ -104,28 +104,30 @@ when 'remove'
     puts "Site #{domain} removed."
   end
 when 'activate'
-  # 1) hardlink it into /etc/nginx/sites-available
-  system("ln #{home}/SiteConfigs/#{file_domain} /etc/nginx/sites-available/#{domain}")
-  # 2) symlink it into /etc/nginx/sites-enabled
-  system("ln -s /etc/nginx/sites-available/#{domain} /etc/nginx/sites-enabled/#{domain}")
-  # 3) hardlink thin config into /etc/thin
-  system("ln #{home}/SiteConfigs/#{file_domain}-thin.yml /etc/thin/#{domain}-thin.yml") if File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
-  # 4) hardlink it into /etc/haproxy/sites
-  system("ln #{home}/SiteConfigs/#{file_domain}.cfg /etc/haproxy/sites/#{domain}.cfg")
-  if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
-    iterator = file_domain.match(/^(\d+)/)[1].to_i
-    ports = []
-    ports[0] = $port_range + 1 + iterator*10
-    ports[1] = ports[0]+1
-    ports[2] = ports[1]+1
-    ports[3] = ports[2]+1
-    config = YAML.load_file(options[:config] || "#{home}/apps/#{domain}/config/cilantro.yml")
-    config[:ports] = ports
-    File.open("#{home}/apps/#{domain}/config/cilantro.yml", 'w') do |cilantro|
-      cilantro << config.to_yaml
+  if File.exists?("/etc/nginx/sites-enabled/#{domain}") || File.exists?("/etc/nginx/sites-available/#{domain}") || File.exists?("/etc/haproxy/sites/#{domain}.cfg") || File.exists?("/etc/thin/#{domain}-thin.yml")
+  else
+    # 1) hardlink it into /etc/nginx/sites-available
+    system("ln #{home}/SiteConfigs/#{file_domain} /etc/nginx/sites-available/#{domain}")
+    # 2) symlink it into /etc/nginx/sites-enabled
+    system("ln -s /etc/nginx/sites-available/#{domain} /etc/nginx/sites-enabled/#{domain}")
+    # 3) hardlink thin config into /etc/thin
+    system("ln #{home}/SiteConfigs/#{file_domain}-thin.yml /etc/thin/#{domain}-thin.yml") if File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
+    # 4) hardlink it into /etc/haproxy/sites
+    system("ln #{home}/SiteConfigs/#{file_domain}.cfg /etc/haproxy/sites/#{domain}.cfg")
+    if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
+      iterator = file_domain.match(/^(\d+)/)[1].to_i
+      ports = []
+      ports[0] = $port_range + 1 + iterator*10
+      ports[1] = ports[0]+1
+      ports[2] = ports[1]+1
+      ports[3] = ports[2]+1
+      config = YAML.load_file(options[:config] || "#{home}/apps/#{domain}/config/cilantro.yml")
+      config[:ports] = ports
+      File.open("#{home}/apps/#{domain}/config/cilantro.yml", 'w') do |cilantro|
+        cilantro << config.to_yaml
+      end
     end
   end
-
   # 5) Reload haproxy
   system("/etc/init.d/haproxy reload")
   # 6) Reload nginx
@@ -154,9 +156,11 @@ when 'deactivate'
 when 'list'
   matches = Dir.glob("*.cfg").select {|ha| ha =~ /^\d+-/}.collect {|ha| ha.match(/^\d+-(.+)\.cfg$/)[1]}
   puts "Managed Sites:\n\t#{matches.join("\n\t")}"
-when 'start'
+when 'restart'
   # Cilantro
+  system("cilantro stop #{home}/apps/#{domain}") if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
   system("cilantro start #{home}/apps/#{domain}") if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
   # Thin
+  system("thin stop --config /etc/thin/#{domain}-thin.yml") if File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
   system("thin start --config /etc/thin/#{domain}-thin.yml") if File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
 end

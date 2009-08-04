@@ -49,6 +49,7 @@ def report_error(e)
   if File.exists?('config/cilantro.yml')
     jabber = YAML.load_file('config/cilantro.yml')
     begin
+      require 'rubygems'
       require 'xmpp4r'
       client = Jabber::Client.new(Jabber::JID.new("#{jabber[:username]}/cilantro"))
       client.connect('talk.google.com', '5222')
@@ -75,7 +76,7 @@ end
 options = {}
 
 optparse = OptionParser.new do |opts|
-  opts.banner = "Usage: cilantro [action=start] [directory=.] [options]"
+  opts.banner = "Usage: #{$0} [action=start] [directory=.] [options]"
 
   options[:verbose] = false
   opts.on( '-v', '--verbose', "Show me what you're doing" ) do
@@ -132,7 +133,7 @@ end
   
 if (options[:config] || (!options[:specified_port] && File.exists?("#{directory}/config/cilantro.yml"))) && action =~ /start/
   if $config.is_a?(Hash)
-    ports = $config[:ports]
+    ports = $config[:ports] || []
     options[:port] = ports.pop unless ports.empty? # if no ports specified, we'll continue with the default port 5000
     # Then we need to start a few more starter processes if there are more ports to run on
     ports.each do |port|
@@ -159,6 +160,15 @@ begin
       exit
     end
   when 'start'
+    Dir.glob("#{write_dir}/cilantro.*.pid").each do |pidfile|
+      pid = pidfile.match(/(\d+)/)[0]
+      port = File.read(pidfile).chomp
+      if options[:port].to_s == port.to_s
+        puts "[WARN] Cilantro app already running on port #{port}!"
+        exit
+      end
+    end
+
     # Check whether environment is sane...
     #   - config/init
     if File.exists?('config/init.rb')

@@ -1,0 +1,89 @@
+#!/usr/bin/env ruby
+
+options = {}
+
+optparse = OptionParser.new do |opts|
+  opts.banner = "Usage: #{$0} (add) domain [options]"
+
+  options[:verbose] = false
+  opts.on( '-v', '--verbose', "Show me what you're doing" ) do
+    options[:verbose] = true
+  end
+
+  options[:branch] = 'master'
+  opts.on( '-b', '--branch', "Deploy from branch BRANCH" ) do |branch|
+    options[:branch] = branch
+  end
+
+  opts.on( '-h', '--help', 'Display this screen' ) do
+    puts opts
+    exit
+  end
+end
+
+optparse.parse!
+
+action = ARGV[0]
+domain = ARGV[1]
+branch = ARGV[2] || 'master'
+site_dir = Dir.pwd
+
+case action
+when 'add'
+  # Add to the gitosis-admin config
+    puts "Adding #{domain} to the server site list..."
+    # check it out into ~/.gitosis-admin if not there already
+      system "git clone git@linode:gitosis-admin.git #{ENV['HOME']}/.gitosis-admin" unless File.directory?("#{ENV['HOME']}/.gitosis-admin")
+      Dir.chdir("#{ENV['HOME']}/.gitosis-admin")
+    # parse the config
+      conf = File.read("gitosis.conf")
+      sections = []
+      sites = {}
+      conf.each_line do |line|
+        line.chomp!
+        if line =~ /\[(.*)\]/
+          words = $1.split(/\s+/)
+          if words[0] == 'group'
+            sections << {:section => words, :group => words[1]}
+            if sections.last[:group] =~ /\....?/
+              sites[sections.last[:group]] = sections.last
+            end
+          else
+            sections << {:section => words}
+          end
+        elsif line =~ /.+\=.+/
+          key, value = line.split(/\s*\=\s*/)
+          sections.last[key] = value
+        end
+      end
+    # add the entry
+      sites[domain] = {:section => ['group', domain], 'writable' => domain, 'members' => "#{ENV['USER']}@#{`hostname`.chomp}"}
+    # rewrite the config
+      sections.reject! {|sec| sec.has_key?(:group) && sites.has_key?(sec[:group])}
+      new_conf = ''
+      sections.each do |sec|
+        new_conf << "[#{sec[:section].join(' ')}]\n"
+        sec.each_key {|k| new_conf << "#{k} = #{sec[k]}\n" if k.is_a?(String)}
+        new_conf << "\n"
+      end
+      sites.each do |dom,sec|
+        new_conf << "[group #{dom}]\n"
+        sec.each_key {|k| new_conf << "#{k} = #{sec[k]}\n" if k.is_a?(String)}
+        new_conf << "\n"
+      end
+      File.open("gitosis.conf", 'w') do |file|
+        file << new_conf
+      end
+    # git commit
+      system("git commit -am \"Added site #{domain}.\"")
+    # git push
+      system("git push")
+  # Git push this repository to the new domain name git repo
+    puts "Pushing site from #{site_dir}, branch #{options[:branch]} to linode..."
+    Dir.chdir(site_dir)
+    system("git remote add linode git@linode:#{domain}.git")
+    system("git push linode #{options[:branch]}")
+  # Ping linode administration app to insert the post-receive hook and run it as @git.
+    puts "Starting site for the first time..."
+    
+end
