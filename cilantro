@@ -84,7 +84,7 @@ optparse = OptionParser.new do |opts|
   end
 
   options[:host] = '0.0.0.0'
-  opts.on('--host', "Listen on host HOST (default ALL:0.0.0.0)") do |host|
+  opts.on('--host HOST', "Listen on host HOST (default ALL:0.0.0.0)") do |host|
     options[:host] = host
     options[:specified_host] = true
   end
@@ -145,6 +145,7 @@ if (options[:config] || (!options[:specified_port] && File.exists?("#{directory}
     # Then we need to start a few more starter processes if there are more ports to run on
     ports.each do |port|
       system "#{$0} #{action} \"#{directory}\" --host #{options[:host]} --port #{port}#{' --verbose' if options[:verbose]}"
+      sleep 1 # give each one a little time to start up
     end
   end
 end
