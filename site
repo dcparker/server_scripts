@@ -136,15 +136,13 @@ when 'activate'
   # 6) Reload nginx
     system("/etc/init.d/nginx reload")
   # 7) Start services that run this app
+    system("sudo -u www-data #{home}/apps/#{domain}/app-up") if File.exists?("#{home}/apps/#{domain}/app-up")
     # Cilantro
     if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
       system("sudo -u www-data -H cilantro start #{home}/apps/#{domain}")
     # Thin
     elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
       system("thin start --config /etc/thin/#{domain}-thin.yml")
-    # Self-starter
-    elsif File.exists?("#{home}/apps/#{domain}/run_app")
-      system("sudo -u www-data #{home}/apps/#{domain}/run_app start")
     end
 when 'deactivate'
   # 1) remove all of the configs from the active system
@@ -164,14 +162,13 @@ when 'deactivate'
     # Thin
     elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
       system("thin stop --config /etc/thin/#{domain}-thin.yml")
-    # Self-starter
-    elsif File.exists?("#{home}/apps/#{domain}/run_app")
-      system("sudo -u www-data #{home}/apps/#{domain}/run_app stop")
     end
+    system("sudo -u www-data #{home}/apps/#{domain}/app-down") if File.exists?("#{home}/apps/#{domain}/app-down")
 when 'list'
   matches = Dir.glob("*.cfg").select {|ha| ha =~ /^\d+-/}.collect {|ha| ha.match(/^\d+-(.+)\.cfg$/)[1]}
   puts "Managed Sites:\n\t#{matches.join("\n\t")}"
 when 'restart'
+  system("sudo -u www-data #{home}/apps/#{domain}/app-down") if File.exists?("#{home}/apps/#{domain}/app-down")
   # Cilantro
   if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
     system("cilantro stop #{home}/apps/#{domain}")
@@ -181,9 +178,6 @@ when 'restart'
   elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
     system("thin stop --config /etc/thin/#{domain}-thin.yml")
     system("thin start --config /etc/thin/#{domain}-thin.yml")
-  # Self-starter
-  elsif File.exists?("#{home}/apps/#{domain}/run_app")
-    system("sudo -u www-data #{home}/apps/#{domain}/run_app stop")
-    system("sudo -u www-data #{home}/apps/#{domain}/run_app start")
   end
+  system("sudo -u www-data #{home}/apps/#{domain}/app-up") if File.exists?("#{home}/apps/#{domain}/app-up")
 end
