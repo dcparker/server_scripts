@@ -132,14 +132,20 @@ when 'activate'
     end
   end
   # 5) Reload haproxy
-  system("/etc/init.d/haproxy reload")
+    system("/etc/init.d/haproxy reload")
   # 6) Reload nginx
-  system("/etc/init.d/nginx reload")
+    system("/etc/init.d/nginx reload")
   # 7) Start services that run this app
     # Cilantro
-    system("cilantro start #{home}/apps/#{domain}") if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
+    if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
+      system("sudo -u www-data -H cilantro start #{home}/apps/#{domain}")
     # Thin
-    system("thin start --config /etc/thin/#{domain}-thin.yml") if File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
+    elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
+      system("thin start --config /etc/thin/#{domain}-thin.yml")
+    # Self-starter
+    elsif File.exists?("#{home}/apps/#{domain}/run_app")
+      system("sudo -u www-data #{home}/apps/#{domain}/run_app start")
+    end
 when 'deactivate'
   # 1) remove all of the configs from the active system
   system("rm /etc/nginx/sites-enabled/#{domain}") if File.exists?("/etc/nginx/sites-enabled/#{domain}")
@@ -153,9 +159,15 @@ when 'deactivate'
   system("/etc/init.d/haproxy reload")
   # 4) Stop any services running this app
     # Cilantro
-    system("cilantro stop #{home}/apps/#{domain}") if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
+    if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
+      system("cilantro stop #{home}/apps/#{domain}")
     # Thin
-    system("thin stop --config /etc/thin/#{domain}-thin.yml") if File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
+    elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
+      system("thin stop --config /etc/thin/#{domain}-thin.yml")
+    # Self-starter
+    elsif File.exists?("#{home}/apps/#{domain}/run_app")
+      system("sudo -u www-data #{home}/apps/#{domain}/run_app stop")
+    end
 when 'list'
   matches = Dir.glob("*.cfg").select {|ha| ha =~ /^\d+-/}.collect {|ha| ha.match(/^\d+-(.+)\.cfg$/)[1]}
   puts "Managed Sites:\n\t#{matches.join("\n\t")}"
@@ -164,11 +176,14 @@ when 'restart'
   if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
     system("cilantro stop #{home}/apps/#{domain}")
     sleep 0.5
-    system("cilantro start #{home}/apps/#{domain}")
-  end
+    system("sudo -u www-data -H cilantro start #{home}/apps/#{domain}")
   # Thin
-  if File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
+  elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
     system("thin stop --config /etc/thin/#{domain}-thin.yml")
     system("thin start --config /etc/thin/#{domain}-thin.yml")
+  # Self-starter
+  elsif File.exists?("#{home}/apps/#{domain}/run_app")
+    system("sudo -u www-data #{home}/apps/#{domain}/run_app stop")
+    system("sudo -u www-data #{home}/apps/#{domain}/run_app start")
   end
 end

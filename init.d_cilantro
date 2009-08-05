@@ -13,9 +13,9 @@
 # Author: Daniel Parker
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
-RUN_AS="sudo -u www-data"
+RUN_AS="sudo -u www-data -H"
 CILANTRO=/usr/local/bin/cilantro
-SITES_LOCATION=/home/dcparker/apps/*
+SITES_LOCATION=/home/*/apps/*
 
 test -x $CILANTRO || exit 0
 
