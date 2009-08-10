@@ -173,8 +173,14 @@ begin
       pid = pidfile.match(/(\d+)/)[0]
       port = File.read(pidfile).chomp
       if options[:port].to_s == port.to_s
-        puts "[WARN] Cilantro app already running on #{port}!"
-        exit
+        # Check to see if it's actually running:
+        if `which pidof` == '' || apid = `pidof "cilantro [#{port.to_s}]"`
+          puts "[WARN] Cilantro app already running on #{port}!"
+          exit
+        else
+          puts "[WARN] Cilantro app must have ended prematurely: stale pid file detected and removed."
+          File.delete("#{write_dir}/cilantro.#{pid}.pid")
+        end
       end
     end
 

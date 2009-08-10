@@ -108,6 +108,7 @@ when 'remove'
   end
 when 'activate'
   if File.exists?("/etc/nginx/sites-enabled/#{domain}") || File.exists?("/etc/nginx/sites-available/#{domain}") || File.exists?("/etc/haproxy/sites/#{domain}.cfg") || File.exists?("/etc/thin/#{domain}-thin.yml")
+    puts "Site already active."
   else
     # 1) hardlink it into /etc/nginx/sites-available
     system("ln #{home}/SiteConfigs/#{file_domain} /etc/nginx/sites-available/#{domain}")
@@ -117,29 +118,31 @@ when 'activate'
     system("ln #{home}/SiteConfigs/#{file_domain}-thin.yml /etc/thin/#{domain}-thin.yml") if File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
     # 4) hardlink it into /etc/haproxy/sites
     system("ln #{home}/SiteConfigs/#{file_domain}.cfg /etc/haproxy/sites/#{domain}.cfg")
-    if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
-      iterator = file_domain.match(/^(\d+)/)[1].to_i
-      ports = []
-      ports[0] = $port_range + 1 + iterator*10
-      ports[1] = ports[0]+1
-      ports[2] = ports[1]+1
-      ports[3] = ports[2]+1
-      config = YAML.load_file(options[:config] || "#{home}/apps/#{domain}/config/cilantro.yml")
-      config[:ports] = ports
-      File.open("#{home}/apps/#{domain}/config/cilantro.yml", 'w') do |cilantro|
-        cilantro << config.to_yaml
-      end
+  end
+
+  if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
+    iterator = file_domain.match(/^(\d+)/)[1].to_i
+    ports = []
+    ports[0] = $port_range + 1 + iterator*10
+    ports[1] = ports[0]+1
+    ports[2] = ports[1]+1
+    ports[3] = ports[2]+1
+    config = YAML.load_file(options[:config] || "#{home}/apps/#{domain}/config/cilantro.yml") || {}
+    config[:ports] = ports
+    File.open("#{home}/apps/#{domain}/config/cilantro.yml", 'w') do |cilantro|
+      cilantro << config.to_yaml
     end
   end
+
   # 5) Reload haproxy
     system("/etc/init.d/haproxy reload")
   # 6) Reload nginx
     system("/etc/init.d/nginx reload")
   # 7) Start services that run this app
-    system("sudo -u www-data #{home}/apps/#{domain}/app-up") if File.exists?("#{home}/apps/#{domain}/app-up")
+    system("sudo -u www-data #{home}/apps/#{domain}/app-up") if File.exists?("#{home}/apps/#{domain}/app-up") && Dir.glob("#{home}/apps/#{domain}/log/app-up.pid").empty?
     # Cilantro
     if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
-      system("sudo -u www-data -H cilantro start #{home}/apps/#{domain}")
+      system("sudo -u www-data -H cilantro start #{home}/apps/#{domain}") if Dir.glob("#{home}/apps/#{domain}/log/*.pid").empty?
     # Thin
     elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
       system("thin start --config /etc/thin/#{domain}-thin.yml")
