@@ -139,7 +139,7 @@ when 'activate'
   # 6) Reload nginx
     system("/etc/init.d/nginx reload")
   # 7) Start services that run this app
-    system("sudo -u www-data #{home}/apps/#{domain}/app-up") if File.exists?("#{home}/apps/#{domain}/app-up") && Dir.glob("#{home}/apps/#{domain}/log/app-up.pid").empty?
+    system("cd #{home}/apps/#{domain}; sudo -u www-data #{home}/apps/#{domain}/app-up") if File.exists?("#{home}/apps/#{domain}/app-up") && Dir.glob("#{home}/apps/#{domain}/log/app-up.pid").empty?
     # Cilantro
     if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
       system("sudo -u www-data -H cilantro start #{home}/apps/#{domain}") if Dir.glob("#{home}/apps/#{domain}/log/*.pid").empty?
@@ -166,12 +166,12 @@ when 'deactivate'
     elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
       system("thin stop --config /etc/thin/#{domain}-thin.yml")
     end
-    system("sudo -u www-data #{home}/apps/#{domain}/app-down") if File.exists?("#{home}/apps/#{domain}/app-down")
+    system("cd #{home}/apps/#{domain}; sudo -u www-data #{home}/apps/#{domain}/app-down") if File.exists?("#{home}/apps/#{domain}/app-down")
 when 'list'
   matches = Dir.glob("*.cfg").select {|ha| ha =~ /^\d+-/}.collect {|ha| ha.match(/^\d+-(.+)\.cfg$/)[1]}
   puts "Managed Sites:\n\t#{matches.join("\n\t")}"
 when 'restart'
-  system("sudo -u www-data #{home}/apps/#{domain}/app-down") if File.exists?("#{home}/apps/#{domain}/app-down")
+  system("cd #{home}/apps/#{domain}; sudo -u www-data #{home}/apps/#{domain}/app-down") if File.exists?("#{home}/apps/#{domain}/app-down")
   # Cilantro
   if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
     system("cilantro stop #{home}/apps/#{domain}")
@@ -182,5 +182,5 @@ when 'restart'
     system("thin stop --config /etc/thin/#{domain}-thin.yml")
     system("thin start --config /etc/thin/#{domain}-thin.yml")
   end
-  system("sudo -u www-data #{home}/apps/#{domain}/app-up") if File.exists?("#{home}/apps/#{domain}/app-up")
+  system("cd #{home}/apps/#{domain}; sudo -u www-data #{home}/apps/#{domain}/app-up") if File.exists?("#{home}/apps/#{domain}/app-up")
 end
