@@ -39,7 +39,7 @@ end
 
 def mysql(command)
   puts command
-  response = `echo "#{command};" | mysql 2>&1`
+  response = `echo "#{command};" | mysql --defaults-extra-file=/root/.my.cnf 2>&1`
   if $?.exitstatus == 0
     return true, ''
   else
