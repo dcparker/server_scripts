@@ -43,6 +43,7 @@ def mysql(command)
   if $?.exitstatus == 0
     return true, ''
   else
+    warn "! mysql error: #{response}"
     if response =~ /ERROR (\d+)/
       return false, [response.match(/ERROR (\d+)/)[1].to_i, response]
     else
