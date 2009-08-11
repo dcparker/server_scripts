@@ -268,6 +268,11 @@ begin
     puts "Stopped #{count} Cilantro services."
   when 'restart'
     puts "sorry, not yet implemented...\n\nWhat I want here is to restart all cilantro services that match the commandline specifications, but each with the full options they started with."
+  when 'new'
+    system "git clone git://github.com/dcparker/cilantro #{directory}"
+    Dir.chdir(directory)
+    system "rm -rf .git"
+    system "git init"
   end
 rescue SyntaxError => e
   puts "Error: #{e}"
