@@ -61,7 +61,7 @@ end
 require 'optparse'
 options = {}
 optparse = OptionParser.new do |opts|
-  opts.banner = "Usage: site (new|activate|deactivate|list|restart) domain.com"
+  opts.banner = "Usage: site (new|activate|deactivate|list|restart) domain.com [OPTIONS]"
 
   # options[:verbose] = false
   # opts.on( '-v', '--verbose', "Show me what you're doing" ) do
@@ -71,6 +71,11 @@ optparse = OptionParser.new do |opts|
   options[:thin] = false
   opts.on( '-t', '--thin', "Will set up thin configs as well" ) do
     options[:thin] = true
+  end
+
+  options[:nostart] = false
+  opts.on( '--no-start', "Disable starting the app after activating" ) do
+    options[:nostart] = true
   end
 
 end
@@ -200,13 +205,15 @@ when 'activate'
   # 6) Reload nginx
     system("/etc/init.d/nginx reload")
   # 7) Start services that run this app
-    system("cd #{home}/apps/#{domain}; sudo -u www-data #{home}/apps/#{domain}/app-up") if File.exists?("#{home}/apps/#{domain}/app-up") && Dir.glob("#{home}/apps/#{domain}/log/app-up.pid").empty?
-    # Cilantro
-    if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
-      system("sudo -u www-data -H cilantro start #{home}/apps/#{domain}") if Dir.glob("#{home}/apps/#{domain}/log/*.pid").empty?
-    # Thin
-    elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
-      system("thin start --config /etc/thin/#{domain}-thin.yml")
+    unless options[:nostart]
+      system("cd #{home}/apps/#{domain}; sudo -u www-data #{home}/apps/#{domain}/app-up") if File.exists?("#{home}/apps/#{domain}/app-up") && Dir.glob("#{home}/apps/#{domain}/log/app-up.pid").empty?
+      # Cilantro
+      if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
+        system("sudo -u www-data -H cilantro start #{home}/apps/#{domain}") if Dir.glob("#{home}/apps/#{domain}/log/*.pid").empty?
+      # Thin
+      elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
+        system("thin start --config /etc/thin/#{domain}-thin.yml")
+      end
     end
 when 'deactivate'
   # 1) remove all of the configs from the active system
