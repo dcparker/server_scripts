@@ -47,20 +47,24 @@ def report_error(e)
   # Make the magic happen!
   # (jabber me when there's an error loading an app)
   if File.exists?('config/cilantro.yml')
-    jabber = YAML.load_file('config/cilantro.yml')
-    begin
-      require 'rubygems'
-      require 'xmpp4r'
-      client = Jabber::Client.new(Jabber::JID.new("#{jabber[:username]}/cilantro"))
-      client.connect('talk.google.com', '5222')
-      client.auth(jabber[:password])
-      client.send(Jabber::Presence.new.set_type(:available))
-      msg = Jabber::Message.new(jabber[:notify], "#{e.inspect}\n#{e.backtrace.join("\n")}")
-      msg.type = :chat
-      client.send(msg)
-      client.close
-    rescue => f
-      raise f
+    jabber = YAML.load_file('config/cilantro.yml') || {}
+    if jabber[:notify]
+      begin
+        require 'rubygems'
+        require 'xmpp4r'
+        client = Jabber::Client.new(Jabber::JID.new("#{jabber[:username]}/cilantro"))
+        client.connect('talk.google.com', '5222')
+        client.auth(jabber[:password])
+        client.send(Jabber::Presence.new.set_type(:available))
+        msg = Jabber::Message.new(jabber[:notify], "#{e.inspect}\n#{e.backtrace.join("\n")}")
+        msg.type = :chat
+        client.send(msg)
+        client.close
+      rescue => f
+        raise f
+      end
+    else
+      raise e
     end
   else
     raise e
@@ -135,7 +139,7 @@ when File.exists?("#{directory}/config/cilantro.yml")
   YAML.load_file("#{directory}/config/cilantro.yml")
 else
   {}
-end
+end || {}
   
 if (options[:config] || (!options[:specified_port] && File.exists?("#{directory}/config/cilantro.yml"))) && action =~ /start/
   if $config.is_a?(Hash)

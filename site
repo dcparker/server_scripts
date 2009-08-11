@@ -38,12 +38,10 @@ def YAML.write_defaults_to_file(file, defaults)
 end
 
 def mysql(command)
-  puts command
   response = `echo "#{command};" | mysql --defaults-extra-file=/root/.my.cnf 2>&1`
   if $?.exitstatus == 0
     return true, ''
   else
-    warn "! mysql error: #{response}"
     if response =~ /ERROR (\d+)/
       return false, [response.match(/ERROR (\d+)/)[1].to_i, response]
     else
@@ -168,7 +166,7 @@ when 'activate'
   linode_config[:database_user] = "#{linode_config[:database_name]}_user"
   linode_config[:database_password] = String.random(40)
 
-  success, response = mysql("CREATE DATABASE \`#{linode_config[:database_name]}\`")
+  success, response = mysql("CREATE DATABASE #{linode_config[:database_name]}")
   if success
     # Succeeds if database did not already exist, and was created.
   elsif response[0] != 1007
