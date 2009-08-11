@@ -38,6 +38,7 @@ def YAML.write_defaults_to_file(file, defaults)
 end
 
 def mysql(command)
+  puts command
   response = `echo "#{command};" | mysql 2>&1`
   if $?.exitstatus == 0
     return true, ''
@@ -179,8 +180,10 @@ when 'activate'
     # User created. Now, grant the permissions.
     success, response = mysql("GRANT ALL ON #{linode_config[:database_name]}.* TO '#{linode_config[:database_user]}'@'localhost'")
   elsif response[0] == 1396
-    # User is already created. Change the password.
-    success, response = mysql("SET PASSWORD FOR '#{linode_config[:database_user]}'@'localhost' = PASSWORD('#{linode_config[:database_password]}')")
+    # User is already created. Change the password, unless the app already has a config.
+    unless File.exists?("#{home}/apps/#{domain}/config/linode.yml")
+      success, response = mysql("SET PASSWORD FOR '#{linode_config[:database_user]}'@'localhost' = PASSWORD('#{linode_config[:database_password]}')")
+    end
   end
   
   YAML.write_defaults_to_file("#{home}/apps/#{domain}/config/linode.yml", linode_config)
