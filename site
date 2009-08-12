@@ -30,11 +30,12 @@ def String.random(size)
   (0...size).collect { String::ALPHANUMERIC_CHARACTERS[Kernel.rand(length)] }.join
 end
 # Starts with defaults (hash), updates with what's currently in the file, then rewrites the file.
-def YAML.write_defaults_to_file(file, defaults)
+def YAML.update_file(file)
+  raise ArgumentError, "Must pass block!" unless block_given?
   from_yaml = File.exists?(file) ? (YAML.load_file(file) || {}) : {}
-  defaults.update(from_yaml)
+  new_yaml = yield(from_yaml)
   File.open(file, 'w') do |yaml_file|
-    yaml_file << defaults.to_yaml
+    yaml_file << new_yaml.to_yaml
   end
 end
 
@@ -139,11 +140,15 @@ when 'new'
   system("chown #{$user}:#{$user} #{ENV['HOME']}/SiteConfigs/#{iterator}-#{domain}.cfg")
   puts "Site #{domain} configs created and ready to activate."
 when 'remove'
-  if File.exists?("/etc/nginx/sites-enabled/#{domain}") || File.exists?("/etc/nginx/sites-available/#{domain}") || File.exists?("/etc/haproxy/sites/#{domain}.cfg") || File.exists?("/etc/thin/#{domain}-thin.yml")
-    puts "Can't remove #{domain} yet: Must deactivate first!"
+  if file_domain
+    if File.exists?("/etc/nginx/sites-enabled/#{domain}") || File.exists?("/etc/nginx/sites-available/#{domain}") || File.exists?("/etc/haproxy/sites/#{domain}.cfg") || File.exists?("/etc/thin/#{domain}-thin.yml")
+      puts "Can't remove #{domain} yet: Must deactivate first!"
+    else
+      system("rm #{home}/SiteConfigs/#{file_domain}*")
+      puts "Site #{domain} removed."
+    end
   else
-    system("rm #{home}/SiteConfigs/#{file_domain}*")
-    puts "Site #{domain} removed."
+    puts "Site #{domain} already removed."
   end
 when 'activate'
   if File.exists?("/etc/nginx/sites-enabled/#{domain}") || File.exists?("/etc/nginx/sites-available/#{domain}") || File.exists?("/etc/haproxy/sites/#{domain}.cfg") || File.exists?("/etc/thin/#{domain}-thin.yml")
@@ -169,30 +174,63 @@ when 'activate'
 
   # Create a database if there is none already.
   linode_config[:database][:database] = domain.gsub(/\./,'_')
-  linode_config[:database][:username] = "#{linode_config[:database][:database]}_user"
+  require 'digest/sha1'
+  linode_config[:database][:username] = Digest::SHA1.hexdigest(domain)[0..15]
   linode_config[:database][:password] = String.random(40)
-  success, response = mysql("CREATE DATABASE #{linode_config[:database][:database]}")
-  if success
-    # Succeeds if database did not already exist, and was created.
-  elsif response[0] == 1007
-    puts "Database for this app already exists."
-  else
-    # ERROR 1007 -- database already exists
-    # ERROR 1064 -- syntax error
-    warn "!! COULD NOT CREATE DATABASE '#{linode_config[:database][:database]}': \"#{response[1]}\""
-  end
-  success, response = mysql("CREATE USER '#{linode_config[:database][:username]}'@'localhost' IDENTIFIED BY '#{linode_config[:database][:password]}'")
-  if success
-    # User created. Now, grant the permissions.
-    success, response = mysql("GRANT ALL ON #{linode_config[:database][:database]}.* TO '#{linode_config[:database][:username]}'@'localhost'")
-  elsif response[0] == 1396
-    # User is already created. Change the password, unless the app already has a config.
-    unless File.exists?("#{home}/apps/#{domain}/config/linode.yml")
-      success, response = mysql("SET PASSWORD FOR '#{linode_config[:database][:username]}'@'localhost' = PASSWORD('#{linode_config[:database][:password]}')")
-      puts "Changed database password for #{linode_config[:database][:username]}"
+  YAML.update_file("#{home}/apps/#{domain}/config/linode.yml") do |present_config|
+    update_username = false
+    update_password = false
+
+    success, response = mysql("CREATE DATABASE #{linode_config[:database][:database]}")
+    if success
+      # Succeeds if database did not already exist, and was created.
+      puts "Created mysql database #{linode_config[:database][:database]}."
+    elsif response[0] == 1007
+      puts "Database for this app already exists."
+    else
+      # ERROR 1007 -- database already exists
+      # ERROR 1064 -- syntax error
+      warn "!! COULD NOT CREATE DATABASE '#{linode_config[:database][:database]}': \"#{response[1]}\""
     end
+
+    username_diff = present_config[:database][:username] != linode_config[:database][:username]
+    # Change everything if the database name if it is different
+    if present_config[:database][:database] != linode_config[:database][:database]
+      present_config[:database].update(linode_config[:database])
+      update_username = true
+    end
+    if username_diff
+      # Change username AND password if username is not the same
+      present_config[:database][:username] = linode_config[:database][:username]
+      update_username = true
+      present_config[:database][:password] = linode_config[:database][:password]
+    else
+      # if password is not correct
+      if `echo "quit" | mysql -u #{present_config[:database][:password]} --password=#{present_config[:database][:password]} #{present_config[:database][:database]} 2>&1` =~ /ERROR 1045/
+        update_password = true
+        present_config[:database][:password] = linode_config[:database][:password]
+      end
+    end
+    if update_username
+      success, response = mysql("CREATE USER '#{present_config[:database][:username]}'@'localhost' IDENTIFIED BY '#{present_config[:database][:password]}'")
+      if success
+        # User created. Now, grant the permissions.
+        puts "Created user '#{present_config[:database][:username]}'@'localhost'."
+        success, response = mysql("GRANT ALL ON #{present_config[:database][:database]}.* TO '#{present_config[:database][:username]}'@'localhost'")
+      elsif response[0] == 1396
+        # User is already created. Change the password, unless the app already has a config.
+        puts "User '#{present_config[:database][:username]}'@'localhost' already exists."
+      else
+        puts "Other CREATE USER error: #{response[1]}"
+      end
+    end
+    if update_password || update_username
+      success, response = mysql("SET PASSWORD FOR '#{present_config[:database][:username]}'@'localhost' = PASSWORD('#{present_config[:database][:password]}')")
+      puts "Changed database password for '#{present_config[:database][:username]}'@'localhost'."
+    end
+    # Let anything else overwrite the 'defaults'
+    linode_config.update(present_config)
   end
-  YAML.write_defaults_to_file("#{home}/apps/#{domain}/config/linode.yml", linode_config)
 
   # Update the cilantro.yml to reflect the correct ports used for this app's services.
   if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")

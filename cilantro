@@ -155,7 +155,7 @@ if (options[:config] || (!options[:specified_port] && File.exists?("#{directory}
 end
 
 # Start our stuff
-Dir.chdir(directory)
+Dir.chdir(directory) if File.directory?(directory)
 write_dir = File.directory?('log') ? 'log' : 'config'
 
 begin
@@ -178,7 +178,7 @@ begin
       port = File.read(pidfile).chomp
       if options[:port].to_s == port.to_s
         # Check to see if it's actually running:
-        if `which pidof` == '' || apid = `pidof "cilantro [#{port.to_s}]"`
+        if `which pidof` == '' || pid == `pidof "cilantro [#{port.to_s}]"`.chomp
           puts "[WARN] Cilantro app already running on #{port}!"
           exit
         else
@@ -269,7 +269,7 @@ begin
   when 'restart'
     puts "sorry, not yet implemented...\n\nWhat I want here is to restart all cilantro services that match the commandline specifications, but each with the full options they started with."
   when 'new'
-    system "git clone git://github.com/dcparker/cilantro #{directory}"
+    system "git clone git://github.com/dcparker/cilantro.git #{directory}"
     Dir.chdir(directory)
     system "rm -rf .git"
     system "git init"
