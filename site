@@ -112,7 +112,7 @@ when 'new'
 
   # 2) Copy the samples
   File.open("#{iterator}-#{domain}", 'w') do |file|
-    file << interpolate(File.read('/etc/sites/sample-site.com'), {
+    file << interpolate(File.read("#{ENV['HOME']}/defaults/sample-site.com"), {
       :SITE => domain,
       :PORT => ports[0],
       :HOME => home
@@ -120,7 +120,7 @@ when 'new'
   end
   system("chown #{$user}:#{$user} #{ENV['HOME']}/SiteConfigs/#{iterator}-#{domain}")
   File.open("#{iterator}-#{domain}-thin.yml", 'w') do |file|
-    file << interpolate(File.read('/etc/sites/sample-site.com-thin.yml'), {
+    file << interpolate(File.read("#{ENV['HOME']}/defaults/sample-site.com.thin.yml"), {
       :SITE => domain,
       :PORT1 => ports[1],
       :HOME => home
@@ -128,7 +128,7 @@ when 'new'
   end if options[:thin]
   system("chown #{$user}:#{$user} #{ENV['HOME']}/SiteConfigs/#{iterator}-#{domain}-thin.yml") if options[:thin]
   File.open("#{iterator}-#{domain}.cfg", 'w') do |file|
-    file << interpolate(File.read('/etc/sites/sample-site.com.cfg'), {
+    file << interpolate(File.read("#{ENV['HOME']}/defaults/sample-site.com.cfg"), {
       :SITE_NAME => domain.gsub(/[\.]/,'_'),
       :PORT => ports[0],
       :PORT1 => ports[1],
