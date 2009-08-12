@@ -135,6 +135,9 @@ when 'remove'
       end
     end
     File.open(".git/config", 'w') { |file| file << new_config }
+when 'restart'
+  puts "Restarting #{domain}..."
+  system("ssh dcparker@linode \"sudo bash -c \\\"cd /home/git/repositories/#{domain}.git/hooks; sudo -H -u git ./post-receive\\\"\"")
 when 'list'
   # Simply list the active website repositories
   with_gitosis_config do |sites|

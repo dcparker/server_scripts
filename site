@@ -212,20 +212,19 @@ when 'activate'
         present_config[:database][:password] = linode_config[:database][:password]
       end
     end
-    if update_username
-      success, response = mysql("CREATE USER '#{present_config[:database][:username]}'@'localhost' IDENTIFIED BY '#{present_config[:database][:password]}'")
-      if success
-        # User created. Now, grant the permissions.
-        puts "Created user '#{present_config[:database][:username]}'@'localhost'."
-        success, response = mysql("GRANT ALL ON #{present_config[:database][:database]}.* TO '#{present_config[:database][:username]}'@'localhost'")
-      elsif response[0] == 1396
-        # User is already created. Change the password, unless the app already has a config.
-        puts "User '#{present_config[:database][:username]}'@'localhost' already exists."
-      else
-        puts "Other CREATE USER error: #{response[1]}"
-      end
+    success, response = mysql("CREATE USER '#{present_config[:database][:username]}'@'localhost' IDENTIFIED BY '#{present_config[:database][:password]}'")
+    if success
+      # User created. Now, grant the permissions.
+      puts "Created user '#{present_config[:database][:username]}'@'localhost'."
+      success, response = mysql("GRANT ALL ON #{present_config[:database][:database]}.* TO '#{present_config[:database][:username]}'@'localhost'")
+      update_password = true
+    elsif response[0] == 1396
+      # User is already created. Change the password, unless the app already has a config.
+      puts "User '#{present_config[:database][:username]}'@'localhost' already exists."
+    else
+      puts "Other CREATE USER error: #{response[1]}"
     end
-    if update_password || update_username
+    if update_password
       success, response = mysql("SET PASSWORD FOR '#{present_config[:database][:username]}'@'localhost' = PASSWORD('#{present_config[:database][:password]}')")
       puts "Changed database password for '#{present_config[:database][:username]}'@'localhost'."
     end

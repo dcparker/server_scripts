@@ -268,9 +268,17 @@ begin
           Process.kill("INT", pid.to_i)
           count += 1
         end
+        sleep 0.5
         if File.exists?(pidfile)
-          File.delete(pidfile)
-          puts "[WARN] Cilantro app must have ended prematurely: stale pid file detected and removed."
+          if `which pidof` == '' || pid == `pidof "cilantro [#{port.to_s}]"`.chomp
+            Process.kill("INT", pid.to_i) rescue nil
+            sleep 0.3
+            Process.kill("KILL", pid.to_i) rescue nil
+          end
+          if File.exists?(pidfile)
+            File.delete(pidfile) rescue nil
+            puts "[WARN] Cilantro app must have ended prematurely: stale pid file detected and removed."
+          end
         end
       end
     end
