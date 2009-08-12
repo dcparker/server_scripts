@@ -179,11 +179,13 @@ begin
       if options[:port].to_s == port.to_s
         # Check to see if it's actually running:
         if `which pidof` == '' || pid == `pidof "cilantro [#{port.to_s}]"`.chomp
-          puts "[WARN] Cilantro app already running on #{port}!"
-          exit
-        else
+          puts "[WARN] Cilantro app already running on #{port}! Trying again in 1 seconds..."
+          sleep 1
+          exit if pid == `pidof "cilantro [#{port.to_s}]"`.chomp
+        end
+        if File.exists?(pidfile)
+          File.delete(pidfile)
           puts "[WARN] Cilantro app must have ended prematurely: stale pid file detected and removed."
-          File.delete("#{write_dir}/cilantro.#{pid}.pid")
         end
       end
     end
@@ -260,9 +262,16 @@ begin
       pid = pidfile.match(/(\d+)/)[0]
       port = File.read(pidfile).chomp
       if options[:port] == port || !options[:specified_port]
-        puts "[STOP] Cilantro app in #{directory} on port #{port}..."
-        Process.kill("INT", pid.to_i)
-        count += 1
+        # Check to see if it's actually running:
+        if `which pidof` == '' || pid == `pidof "cilantro [#{port.to_s}]"`.chomp
+          puts "[STOP] Cilantro app in #{directory} on port #{port}..."
+          Process.kill("INT", pid.to_i)
+          count += 1
+        end
+        if File.exists?(pidfile)
+          File.delete(pidfile)
+          puts "[WARN] Cilantro app must have ended prematurely: stale pid file detected and removed."
+        end
       end
     end
     puts "Stopped #{count} Cilantro services."

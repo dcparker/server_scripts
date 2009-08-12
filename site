@@ -180,6 +180,7 @@ when 'activate'
   YAML.update_file("#{home}/apps/#{domain}/config/linode.yml") do |present_config|
     update_username = false
     update_password = false
+    present_config[:database] = {} unless present_config[:database].is_a?(Hash)
 
     success, response = mysql("CREATE DATABASE #{linode_config[:database][:database]}")
     if success
