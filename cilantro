@@ -162,6 +162,9 @@ begin
   case action
   when 'run'
     if File.exists?('config/init.rb')
+      lib_dir = Dir.glob(File.expand_path("#{Dir.pwd}/lib"))[0]
+      $:.unshift lib_dir if lib_dir
+      # Use a local copy of sinatra if it's present
       require 'rubygems'
       require 'sinatra'
       Sinatra::Application.set :run, Proc.new { false }
@@ -290,8 +293,9 @@ begin
     Dir.chdir(directory)
     system "rm -rf .git"
     system "git init"
+    puts "Now, commit your first commit, then do 'linode add domain.com'..."
   end
-rescue SyntaxError => e
+rescue SyntaxError, LoadError => e
   puts "Error: #{e}"
   report_error(e)
 rescue => e
