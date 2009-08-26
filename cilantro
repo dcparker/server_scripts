@@ -157,13 +157,13 @@ end
 # Start our stuff
 Dir.chdir(directory) if File.directory?(directory)
 write_dir = File.directory?('log') ? 'log' : 'config'
+lib_dir = Dir.glob(File.expand_path("#{Dir.pwd}/lib"))[0]
+$:.unshift lib_dir if lib_dir
 
 begin
   case action
   when 'run'
     if File.exists?('config/init.rb')
-      lib_dir = Dir.glob(File.expand_path("#{Dir.pwd}/lib"))[0]
-      $:.unshift lib_dir if lib_dir
       # Use a local copy of sinatra if it's present
       require 'rubygems'
       require 'sinatra'
