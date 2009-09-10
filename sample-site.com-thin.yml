@@ -1,0 +1,14 @@
+--- 
+pid: tmp/pids/thin.pid
+address: 127.0.0.1
+timeout: 30
+port: <%= service_ports.first %>
+log: log/thin.log
+max_conns: 1024
+require: []
+
+environment: development
+max_persistent_conns: 512
+servers: <%= service_ports.length %>
+daemonize: true
+chdir: <%= home %>/apps/<%= domain %>

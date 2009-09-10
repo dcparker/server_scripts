@@ -80,6 +80,11 @@ optparse = OptionParser.new do |opts|
     options[:nostart] = true
   end
 
+  options[:ports] = 2
+  opts.on( '--ports PORTS', "Use PORTS number of ports") do |ports|
+    options[:ports] = Integer(ports)
+  end
+
 end.parse!
 
 action = ARGV[0]
@@ -105,37 +110,24 @@ when 'new'
     file << iterator
   end
   ports = [port_range + iterator*10]
-  ports[1] = ports[0]+1
-  ports[2] = ports[1]+1
-  ports[3] = ports[2]+1
-  ports[4] = ports[3]+1
+  until ports.length == options[:ports]+1 # We have one port for nginx, plus one for each balanced service
+    ports[ports.length] = ports.last+1
+  end
+  site_port = ports.shift
+  service_ports = ports
 
   # 2) Copy the samples
+  site_name = domain.gsub(/[\.]/,'_')
   File.open("#{iterator}-#{domain}", 'w') do |file|
-    file << interpolate(File.read("#{ENV['HOME']}/defaults/sample-site.com"), {
-      :SITE => domain,
-      :PORT => ports[0],
-      :HOME => home
-    })
+    file << ERB.new(File.read("#{ENV['HOME']}/defaults/sample-site.com", 0, "%<>").result
   end
   system("chown #{$user}:#{$user} #{ENV['HOME']}/SiteConfigs/#{iterator}-#{domain}")
   File.open("#{iterator}-#{domain}-thin.yml", 'w') do |file|
-    file << interpolate(File.read("#{ENV['HOME']}/defaults/sample-site.com.thin.yml"), {
-      :SITE => domain,
-      :PORT1 => ports[1],
-      :HOME => home
-    })
+    file << ERB.new(File.read("#{ENV['HOME']}/defaults/sample-site.com.thin.yml", 0, "%<>").result
   end if options[:thin]
   system("chown #{$user}:#{$user} #{ENV['HOME']}/SiteConfigs/#{iterator}-#{domain}-thin.yml") if options[:thin]
   File.open("#{iterator}-#{domain}.cfg", 'w') do |file|
-    file << interpolate(File.read("#{ENV['HOME']}/defaults/sample-site.com.cfg"), {
-      :SITE_NAME => domain.gsub(/[\.]/,'_'),
-      :PORT => ports[0],
-      :PORT1 => ports[1],
-      :PORT2 => ports[2],
-      :PORT3 => ports[3],
-      :PORT4 => ports[4]
-    })
+    file << ERB.new(File.read("#{ENV['HOME']}/defaults/sample-site.com.cfg", 0, "%<>").result
   end
   system("chown #{$user}:#{$user} #{ENV['HOME']}/SiteConfigs/#{iterator}-#{domain}.cfg")
   puts "Site #{domain} configs created and ready to activate."

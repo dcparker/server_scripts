@@ -104,10 +104,15 @@ when 'add'
     system("git remote add linode git@linode:#{domain}.git")
     system("git push linode #{options[:branch]}")
   # Ping linode administration app to insert the post-receive hook and run it as @git.
-    puts "Initializing git hooks..."
-    puts `curl -s -d "domain=#{domain}" http://linode_admin:linode_me_nidole@linode:8999/init_git_hooks_please`
-    puts "Starting site for the first time..."
-    puts `curl -s -d "domain=#{domain}" http://linode_admin:linode_me_nidole@linode:8999/run_post_receive_hook`
+    puts "Initializing git hooks and starting site for the first time..."
+    # puts `curl -s -d "domain=#{domain}" http://linode_admin:linode_me_nidole@linode:8999/init_git_hooks_please`
+    system("ssh dcparker@linode \"sudo bash -c \\\"cp /home/git/defaults/post-receive /home/git/repositories/#{domain}.git/hooks/post-receive; chown git:git /home/git/repositories/#{domain}.git/hooks/post-receive; chmod 755 /home/git/repositories/#{domain}.git/hooks/post-receive; cd /home/git/repositories/#{domain}.git/hooks; sudo -H -u git ./post-receive\\\"\"")
+    # system("cp public/post-receive /home/git/repositories/#{@domain}.git/hooks/post-receive")
+    # system("chown git:git /home/git/repositories/#{@domain}.git/hooks/post-receive")
+    # system("chmod 755 /home/git/repositories/#{@domain}.git/hooks/post-receive")
+    # puts "Starting site for the first time..."
+    # puts `curl -s -d "domain=#{domain}" http://linode_admin:linode_me_nidole@linode:8999/run_post_receive_hook`
+    # system("ssh dcparker@linode \"sudo bash -c \\\"cd /home/git/repositories/#{domain}.git/hooks; sudo -H -u git ./post-receive\\\"\"")
 when 'remove'
   # Remove from the gitosis-admin config
     puts "Removing #{domain} from the server site list..."
@@ -117,7 +122,13 @@ when 'remove'
     end
   # Deactivate and remove the site from the server (repo, configs, app)
     puts "Removing the repository from the server..."
-    puts `curl -s -d "domain=#{domain}" http://linode_admin:linode_me_nidole@linode:8999/remove_site`
+    # puts `curl -s -d "domain=#{domain}" http://linode_admin:linode_me_nidole@linode:8999/remove_site`
+    system("ssh dcparker@linode \"sudo bash -c \\\"sudo -H -u git sudo site deactivate #{domain}; sudo -H -u git sudo site remove #{domain}; rm -rf /home/git/repositories/#{domain}.git; rm -rf /home/git/apps/#{domain}\\\"\"")
+    # ret = `sudo -H -u git sudo site deactivate #{@domain}`
+    # ret << `sudo -H -u git sudo site remove #{@domain}`
+    # ret << `rm -rf /home/git/repositories/#{@domain}.git`
+    # ret << `rm -rf /home/git/apps/#{@domain}`
+
   # Remove linode from the list of remotes in this repo?
     conf = File.read(".git/config")
     new_config = ''
@@ -144,6 +155,8 @@ when 'list'
     # add the entry
     puts "Sites:\n\t" + sites.keys.join("\n\t")
   end
+when 'migrate'
+  system("ssh dcparker@linode \"sudo bash -c \\\"cd /home/git/apps/#{domain}; sudo -H -u git rake db:migrate\\\"\"")
 else
   puts optparse
 end
