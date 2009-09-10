@@ -119,15 +119,15 @@ when 'new'
   # 2) Copy the samples
   site_name = domain.gsub(/[\.]/,'_')
   File.open("#{iterator}-#{domain}", 'w') do |file|
-    file << ERB.new(File.read("#{ENV['HOME']}/defaults/sample-site.com", 0, "%<>").result
+    file << ERB.new(File.read("#{ENV['HOME']}/defaults/sample-site.com"), 0, "%<>").result
   end
   system("chown #{$user}:#{$user} #{ENV['HOME']}/SiteConfigs/#{iterator}-#{domain}")
   File.open("#{iterator}-#{domain}-thin.yml", 'w') do |file|
-    file << ERB.new(File.read("#{ENV['HOME']}/defaults/sample-site.com.thin.yml", 0, "%<>").result
+    file << ERB.new(File.read("#{ENV['HOME']}/defaults/sample-site.com.thin.yml"), 0, "%<>").result
   end if options[:thin]
   system("chown #{$user}:#{$user} #{ENV['HOME']}/SiteConfigs/#{iterator}-#{domain}-thin.yml") if options[:thin]
   File.open("#{iterator}-#{domain}.cfg", 'w') do |file|
-    file << ERB.new(File.read("#{ENV['HOME']}/defaults/sample-site.com.cfg", 0, "%<>").result
+    file << ERB.new(File.read("#{ENV['HOME']}/defaults/sample-site.com.cfg"), 0, "%<>").result
   end
   system("chown #{$user}:#{$user} #{ENV['HOME']}/SiteConfigs/#{iterator}-#{domain}.cfg")
   puts "Site #{domain} configs created and ready to activate."
