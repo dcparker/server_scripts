@@ -26,8 +26,8 @@ puts "In #{domain}..."
 # if app is not there, create it; otherwise update it
 if File.exists?(app_dir)
   puts "Updating application..."
-  latest_commit = `git log -n 1 |grep -E -o "\\w{40}$"`.chomp
   Dir.chdir(app_dir)
+  latest_commit = `git log -n 1 |grep -E -o "\\w{40}$"`.chomp
 
   # Read old cilantro config
   cilantro_config = nil
