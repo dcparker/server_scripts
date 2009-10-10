@@ -118,6 +118,8 @@ when 'new'
 
   # 2) Copy the samples
   site_name = domain.gsub(/[\.]/,'_')
+  require 'rubygems'
+  require 'erb'
   File.open("#{iterator}-#{domain}", 'w') do |file|
     file << ERB.new(File.read("#{ENV['HOME']}/defaults/sample-site.com"), 0, "%<>").result
   end
@@ -187,9 +189,9 @@ when 'activate'
     end
 
     username_diff = present_config[:database][:username] != linode_config[:database][:username]
-    # Change everything if the database name if it is different
+    # Change everything if the database name is different
     if present_config[:database][:database] != linode_config[:database][:database]
-      present_config[:database].update(linode_config[:database])
+      present_config[:database].merge!(linode_config[:database])
       update_username = true
     end
     if username_diff
@@ -197,6 +199,7 @@ when 'activate'
       present_config[:database][:username] = linode_config[:database][:username]
       update_username = true
       present_config[:database][:password] = linode_config[:database][:password]
+      update_password = true
     else
       # if password is not correct
       if `echo "quit" | mysql -u #{present_config[:database][:password]} --password=#{present_config[:database][:password]} #{present_config[:database][:database]} 2>&1` =~ /ERROR 1045/
@@ -221,19 +224,20 @@ when 'activate'
       puts "Changed database password for '#{present_config[:database][:username]}'@'localhost'."
     end
     # Let anything else overwrite the 'defaults'
-    linode_config.update(present_config)
+    linode_config.merge!(present_config)
   end
 
   # Update the cilantro.yml to reflect the correct ports used for this app's services.
   if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
     iterator = file_domain.match(/^(\d+)/)[1].to_i
-    ports = []
-    ports[0] = port_range + 1 + iterator*10
-    ports[1] = ports[0]+1
-    ports[2] = ports[1]+1
-    ports[3] = ports[2]+1
+    ports = [port_range + iterator*10]
+    until ports.length == options[:ports]+1 # We have one port for nginx, plus one for each balanced service
+      ports[ports.length] = ports.last+1
+    end
+    site_port = ports.shift
+    service_ports = ports
     config = YAML.load_file(options[:config] || "#{home}/apps/#{domain}/config/cilantro.yml") || {}
-    config[:ports] = ports
+    config[:ports] = service_ports
     File.open("#{home}/apps/#{domain}/config/cilantro.yml", 'w') do |cilantro|
       cilantro << config.to_yaml
     end
@@ -248,7 +252,7 @@ when 'activate'
       system("cd #{home}/apps/#{domain}; sudo -u www-data #{home}/apps/#{domain}/app-up") if File.exists?("#{home}/apps/#{domain}/app-up") && Dir.glob("#{home}/apps/#{domain}/log/app-up.pid").empty?
       # Cilantro
       if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
-        system("sudo -u www-data -H cilantro start #{home}/apps/#{domain}") if Dir.glob("#{home}/apps/#{domain}/log/*.pid").empty?
+        system("sudo -u www-data -H cilantro start #{home}/apps/#{domain} --database_config config/linode.yml") if Dir.glob("#{home}/apps/#{domain}/log/*.pid").empty?
       # Thin
       elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
         system("thin start --config /etc/thin/#{domain}-thin.yml")
@@ -286,7 +290,7 @@ when 'status'
 when 'start'
   # Cilantro
   if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
-    system("sudo -u www-data -H cilantro start #{home}/apps/#{domain}")
+    system("sudo -u www-data -H cilantro start #{home}/apps/#{domain} --database_config config/linode.yml")
   # Thin
   elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
     system("thin start --config /etc/thin/#{domain}-thin.yml")
@@ -307,7 +311,7 @@ when 'restart'
   if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
     system("cilantro stop #{home}/apps/#{domain}")
     sleep 0.5
-    system("sudo -u www-data -H cilantro start #{home}/apps/#{domain}")
+    system("sudo -u www-data -H cilantro start #{home}/apps/#{domain} --database_config config/linode.yml")
   # Thin
   elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
     system("thin stop --config /etc/thin/#{domain}-thin.yml")

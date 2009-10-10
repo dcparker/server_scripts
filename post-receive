@@ -1,0 +1,75 @@
+#!/usr/bin/env ruby
+
+# One idea:
+# Use pre-receive. Exit with a non-zero status to abort and not allow data to be committed.
+# The git repo is not where the app is. So, what we want to do is check out the app to some sandbox location and try to run it on a sandboxed port.
+# If this succeeds, allow the commit. If not, disallow the commit and abort the push. In the meantime, we can also print some nice status lines.
+
+# Simple method:
+# Use post-receive. Check out the repo into an executable location (/home/dcparker/apps), create configs if necessary and activate it.
+
+require 'yaml'
+
+# Starts with defaults (hash), updates with what's currently in the file, then rewrites the file.
+def YAML.write_defaults_to_file(file, defaults)
+  from_yaml = File.exists?(file) ? (YAML.load_file(file) || {}) : {}
+  defaults.update(from_yaml)
+  File.open(file, 'w') do |yaml_file|
+    yaml_file << defaults.to_yaml
+  end
+end
+
+domain = File.expand_path(File.dirname(__FILE__)).match(/\/([^\/]+)\.git/)[1]
+app_dir = "/home/git/apps/#{domain}"
+puts "In #{domain}..."
+
+# if app is not there, create it; otherwise update it
+if File.exists?(app_dir)
+  puts "Updating application..."
+  latest_commit = `git log -n 1 |grep -E -o "\\w{40}$"`.chomp
+  Dir.chdir(app_dir)
+
+  # Read old cilantro config
+  cilantro_config = nil
+  if File.exists?("/home/git/apps/#{domain}/config/cilantro.yml")
+    cilantro_config = YAML.load_file("/home/git/apps/#{domain}/config/cilantro.yml") || {}
+  end
+
+  system("rm config/cilantro.yml")
+  system("git --git-dir=.git checkout -- config/cilantro.yml")
+  system("git --git-dir=.git pull")
+
+  # Integrate new config data and rewrite file
+  YAML.write_defaults_to_file("/home/git/apps/#{domain}/config/cilantro.yml", cilantro_config)
+else
+  puts "Creating application..."
+  system("git clone /home/git/repositories/#{domain}.git #{app_dir}")
+  Dir.chdir(app_dir)
+  system("mkdir log")
+  system("chmod 777 log")
+  YAML.write_defaults_to_file("/home/git/apps/#{domain}/config/cilantro.yml", YAML.load_file("/home/git/defaults/cilantro.yml"))
+end
+commits_included_migration = !!(`git whatchanged #{latest_commit ? latest_commit+'..HEAD ' : ''}| grep -E "\\<A\\>\\W+\\<config/migrations"`.chomp =~ /config\/migrations\/.+\.rb/)
+
+# if site configs don't exist, create them; otherwise just restart the app
+puts "Activating the application..."
+if `sudo site list` =~ /#{domain}/
+  # Update and restart the app
+  system("sudo site activate #{domain} --no-start")
+  if commits_included_migration
+    puts "Migrating the database..."
+    system("rake db:migrate:up")
+  end
+  puts "Restarting the application..."
+  system("sudo site restart #{domain}")
+else
+  # Create and activate the app if it doesn't exist
+  system("sudo site new #{domain}")
+  system("sudo site activate #{domain} --no-start")
+  if commits_included_migration
+    puts "Migrating the database..."
+    system("rake db:migrate:up")
+  end
+  puts "Starting the application..."
+  system("sudo site start #{domain}")
+end

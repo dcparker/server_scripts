@@ -96,7 +96,7 @@ when 'add'
     # modify the config
       modify_gitosis_config("Added site #{domain}.") do |sites|
         # add the entry
-        sites[domain] = {:section => ['group', domain], 'writable' => domain, 'members' => "#{ENV['USER']}@#{`hostname`.chomp}"}
+        sites[domain] = {:section => ['group', domain], 'writable' => domain, 'members' => "#{ENV['USER']}"}
       end
   # Git push this repository to the new domain name git repo
     puts "Pushing site from #{site_dir}, branch #{options[:branch]} to linode..."
