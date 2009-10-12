@@ -151,7 +151,7 @@ if ($options[:config] || (!$options[:specified_port] && File.exists?("#{director
     $options[:port] = ports.pop unless ports.empty? # if no ports specified, we'll continue with the default port 5000
     # Then we need to start a few more starter processes if there are more ports to run on
     ports.each do |port|
-      system "#{$0} #{action} \"#{directory}\" --host #{$options[:host]} --port #{port}#{' --verbose' if $options[:verbose]}"
+      system "#{$0} #{action} \"#{directory}\" --host #{$options[:host]} --port #{port}#{' --database_config '+$options[:database_config] if $options[:database_config]}#{' --verbose' if $options[:verbose]}"
       sleep 1 # give each one a little time to start up
     end
   end
@@ -165,7 +165,7 @@ RACK_ENV = (ENV['RACK_ENV'] = ($config[:environment] || 'development').to_s).to_
 
 def run_app!
   require 'lib/cilantro'
-  Cilantro.database_config_file = $options[:database_config]
+  Cilantro.database_config $options[:database_config]
   Cilantro.load_environment
   Cilantro.set_options(
     :run => Proc.new { false },
