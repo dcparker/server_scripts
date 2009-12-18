@@ -50,6 +50,7 @@ else
   YAML.write_defaults_to_file("/home/git/apps/#{domain}/config/production.yml", YAML.load_file("/home/git/defaults/production.yml"))
 end
 commits_included_migration = !!(`git whatchanged #{latest_commit ? latest_commit+'..HEAD ' : ''}| grep -E "\\<A\\>\\W+\\<config/migrations"`.chomp =~ /config\/migrations\/.+\.rb/)
+commits_included_gems = !!(`git whatchanged #{latest_commit ? latest_commit+'..HEAD ' : ''}| grep -E "\\<A\\>\\W+\\<.gems"`.chomp =~ /\.gems/)
 
 # if site configs don't exist, create them; otherwise just restart the app
 puts "Activating the application..."
@@ -59,6 +60,10 @@ if `sudo site list` =~ /#{domain}/
   if commits_included_migration
     puts "Migrating the database..."
     system("rake db:migrate:up")
+  end
+  if commits_included_gems
+    puts "Installing new gems..."
+    system("rake gems:refresh:production")
   end
   puts "Restarting the application..."
   system("sudo site restart #{domain}")

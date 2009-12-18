@@ -158,7 +158,7 @@ when 'activate'
     system("ln #{home}/SiteConfigs/#{file_domain}.cfg /etc/haproxy/sites/#{domain}.cfg")
   end
 
-  # Create a database and write linode.yml
+  # Create a database and write database.production.yml
   linode_config = {
     :database => {
       :adapter => 'mysql',
@@ -171,7 +171,7 @@ when 'activate'
   require 'digest/sha1'
   linode_config[:database][:username] = Digest::SHA1.hexdigest(domain)[0..15]
   linode_config[:database][:password] = String.random(40)
-  YAML.update_file("#{home}/apps/#{domain}/config/linode.yml") do |present_config|
+  YAML.update_file("#{home}/apps/#{domain}/config/database.production.yml") do |present_config|
     update_username = false
     update_password = false
     present_config[:database] = {} unless present_config[:database].is_a?(Hash)
@@ -252,7 +252,7 @@ when 'activate'
       system("cd #{home}/apps/#{domain}; sudo -u www-data #{home}/apps/#{domain}/app-up") if File.exists?("#{home}/apps/#{domain}/app-up") && Dir.glob("#{home}/apps/#{domain}/log/app-up.pid").empty?
       # Cilantro
       if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
-        system("sudo -u www-data -H cilantro start #{home}/apps/#{domain} --database_config config/linode.yml") if Dir.glob("#{home}/apps/#{domain}/log/*.pid").empty?
+        system("sudo -u www-data -H cilantro start #{home}/apps/#{domain} --database_config config/database.production.yml") if Dir.glob("#{home}/apps/#{domain}/log/*.pid").empty?
       # Thin
       elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
         system("thin start --config /etc/thin/#{domain}-thin.yml")
@@ -290,7 +290,7 @@ when 'status'
 when 'start'
   # Cilantro
   if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
-    system("sudo -u www-data -H cilantro start #{home}/apps/#{domain} --database_config config/linode.yml")
+    system("sudo -u www-data -H cilantro start #{home}/apps/#{domain} --database_config config/database.production.yml")
   # Thin
   elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
     system("thin start --config /etc/thin/#{domain}-thin.yml")
@@ -311,7 +311,7 @@ when 'restart'
   if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
     system("cilantro stop #{home}/apps/#{domain}")
     sleep 0.5
-    system("sudo -u www-data -H cilantro start #{home}/apps/#{domain} --database_config config/linode.yml")
+    system("sudo -u www-data -H cilantro start #{home}/apps/#{domain} --database_config config/database.production.yml")
   # Thin
   elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
     system("thin stop --config /etc/thin/#{domain}-thin.yml")
