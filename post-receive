@@ -31,23 +31,23 @@ if File.exists?(app_dir)
 
   # Read old cilantro config
   cilantro_config = nil
-  if File.exists?("/home/git/apps/#{domain}/config/cilantro.yml")
-    cilantro_config = YAML.load_file("/home/git/apps/#{domain}/config/cilantro.yml") || {}
+  if File.exists?("/home/git/apps/#{domain}/config/production.yml")
+    cilantro_config = YAML.load_file("/home/git/apps/#{domain}/config/production.yml") || {}
   end
 
-  system("rm config/cilantro.yml")
-  system("git --git-dir=.git checkout -- config/cilantro.yml")
+  system("rm config/production.yml")
+  system("git --git-dir=.git checkout -- config/production.yml")
   system("git --git-dir=.git pull")
 
   # Integrate new config data and rewrite file
-  YAML.write_defaults_to_file("/home/git/apps/#{domain}/config/cilantro.yml", cilantro_config)
+  YAML.write_defaults_to_file("/home/git/apps/#{domain}/config/production.yml", cilantro_config)
 else
   puts "Creating application..."
   system("git clone /home/git/repositories/#{domain}.git #{app_dir}")
   Dir.chdir(app_dir)
   system("mkdir log")
   system("chmod 777 log")
-  YAML.write_defaults_to_file("/home/git/apps/#{domain}/config/cilantro.yml", YAML.load_file("/home/git/defaults/cilantro.yml"))
+  YAML.write_defaults_to_file("/home/git/apps/#{domain}/config/production.yml", YAML.load_file("/home/git/defaults/production.yml"))
 end
 commits_included_migration = !!(`git whatchanged #{latest_commit ? latest_commit+'..HEAD ' : ''}| grep -E "\\<A\\>\\W+\\<config/migrations"`.chomp =~ /config\/migrations\/.+\.rb/)
 
