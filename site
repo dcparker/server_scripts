@@ -308,7 +308,7 @@ when 'stop'
 when 'restart'
   system("cd #{home}/apps/#{domain}; sudo -u www-data #{home}/apps/#{domain}/app-down") if File.exists?("#{home}/apps/#{domain}/app-down")
   # Cilantro
-  if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
+  if File.exists?("#{home}/apps/#{domain}/lib/cilantro.rb")
     system("cilantro stop #{home}/apps/#{domain}")
     sleep 0.5
     system("sudo -u www-data -H cilantro start #{home}/apps/#{domain} --database_config config/database.production.yml")
