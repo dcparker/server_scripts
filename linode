@@ -26,7 +26,7 @@ end
 optparse.parse!
 
 action = ARGV[0]
-domain = Dir.pwd.match(/([^\\\/]+)/)[1]
+domain = Dir.pwd.match(/([^\\\/]+)$/)[1]
 branch = ARGV[1] || 'master'
 site_dir = Dir.pwd
 
