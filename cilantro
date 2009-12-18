@@ -122,17 +122,17 @@ end
 
 optparse.parse! unless ARGV[0] == 'git'
 
-action = ARGV[0]
+$action = ARGV[0]
 directory = ARGV[1]
 if directory.nil?
-  if action =~ /^(run|start|stop|status|restart|new|update|git|gitwork)$/
+  if $action =~ /^(run|start|stop|status|restart|new|update|git|gitwork)$/
     directory = Dir.pwd
-  elsif action.nil?
+  elsif $action.nil?
     directory = Dir.pwd
-    action = 'run'
+    $action = 'run'
   else
-    directory = action
-    action = 'run'
+    directory = $action
+    $action = 'run'
   end
 end
 if directory == '.'
@@ -153,14 +153,14 @@ else
   {}
 end || {}
 
-if ($options[:config] || (!$options[:specified_port] && File.exists?("#{directory}/config/#{ENV['RACK_ENV']}.yml"))) && action =~ /start/
+if ($options[:config] || (!$options[:specified_port] && File.exists?("#{directory}/config/#{ENV['RACK_ENV']}.yml"))) && $action =~ /start/
   if $config.is_a?(Hash)
     $options[:host] = $config[:host] if $config.has_key?(:host) && !$options[:specified_host]
     ports = $config[:ports] || []
     $options[:port] = ports.pop unless ports.empty? # if no ports specified, we'll continue with the default port 5000
     # Then we need to start a few more starter processes if there are more ports to run on
     ports.each do |port|
-      system "#{$0} #{action} \"#{directory}\" --host #{$options[:host]} --port #{port}#{' --database_config '+$options[:database_config] if $options[:database_config]}#{' --verbose' if $options[:verbose]}"
+      system "#{$0} #{$action} \"#{directory}\" --host #{$options[:host]} --port #{port}#{' --database_config '+$options[:database_config] if $options[:database_config]}#{' --verbose' if $options[:verbose]}"
       sleep 1 # give each one a little time to start up
     end
   end
@@ -189,12 +189,12 @@ def run_app!
   # Also could implement the EM way to finish outstanding requests before quitting.
 
   Kernel.trap('HUP') {
-    puts "Restarting..."
     exit
   }
   at_exit {
+    puts "Restarting..."
     exec "#{$0} #{ARGV.join(' ')}"
-  }
+  } if RACK_ENV == :development && $action == 'run'
   begin
     Cilantro.app.run!
   rescue RuntimeError => e
@@ -208,7 +208,7 @@ def run_app!
 end
 
 begin
-  case action
+  case $action
   when 'run'
     if File.exists?('config/init.rb')
       run_app!
@@ -349,8 +349,8 @@ begin
     `git pull origin cilantro`
     `git reset --hard cilantro`
       # Save the latest cilantro version that we're working from here.
-      ENV['GIT_DIR'] = ".git"
       last_commit = `git log -n1`.split(/\n/)[0].split(/\s/)[1]
+      ENV['GIT_DIR'] = ".git"
       `git config cilantro.version #{last_commit}`
     p = IO.popen("patch --batch --verbose -p1", 'w')
     p.puts deliberate_diff
