@@ -227,8 +227,8 @@ when 'activate'
     linode_config.merge!(present_config)
   end
 
-  # Update the cilantro.yml to reflect the correct ports used for this app's services.
-  if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
+  # Update cilantro's production.yml to reflect the correct ports used for this app's services.
+  if File.exists?("#{home}/apps/#{domain}/lib/cilantro.rb")
     iterator = file_domain.match(/^(\d+)/)[1].to_i
     ports = [port_range + iterator*10]
     until ports.length == options[:ports]+1 # We have one port for nginx, plus one for each balanced service
@@ -236,9 +236,9 @@ when 'activate'
     end
     site_port = ports.shift
     service_ports = ports
-    config = YAML.load_file(options[:config] || "#{home}/apps/#{domain}/config/cilantro.yml") || {}
+    config = YAML.load_file(options[:config] || "#{home}/apps/#{domain}/config/production.yml") || {}
     config[:ports] = service_ports
-    File.open("#{home}/apps/#{domain}/config/cilantro.yml", 'w') do |cilantro|
+    File.open("#{home}/apps/#{domain}/config/production.yml", 'w') do |cilantro|
       cilantro << config.to_yaml
     end
   end
@@ -251,7 +251,7 @@ when 'activate'
     unless options[:nostart]
       system("cd #{home}/apps/#{domain}; sudo -u www-data #{home}/apps/#{domain}/app-up") if File.exists?("#{home}/apps/#{domain}/app-up") && Dir.glob("#{home}/apps/#{domain}/log/app-up.pid").empty?
       # Cilantro
-      if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
+      if File.exists?("#{home}/apps/#{domain}/lib/cilantro.rb")
         system("sudo -u www-data -H cilantro start #{home}/apps/#{domain} --database_config config/database.production.yml") if Dir.glob("#{home}/apps/#{domain}/log/*.pid").empty?
       # Thin
       elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
@@ -271,7 +271,7 @@ when 'deactivate'
   system("/etc/init.d/haproxy reload")
   # 4) Stop any services running this app
     # Cilantro
-    if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
+    if File.exists?("#{home}/apps/#{domain}/lib/cilantro.rb")
       system("cilantro stop #{home}/apps/#{domain}")
     # Thin
     elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
@@ -282,14 +282,14 @@ when 'list'
   matches = Dir.glob("*.cfg").select {|ha| ha =~ /^\d+-/}.collect {|ha| ha.match(/^\d+-(.+)\.cfg$/)[1]}
   puts "Managed Sites:\n\t#{matches.join("\n\t")}"
 when 'status'
-  if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
+  if File.exists?("#{home}/apps/#{domain}/lib/cilantro.rb")
     system("cilantro status #{home}/apps/#{domain}")
   else
     puts "Can't get status for #{domain}."
   end
 when 'start'
   # Cilantro
-  if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
+  if File.exists?("#{home}/apps/#{domain}/lib/cilantro.rb")
     system("sudo -u www-data -H cilantro start #{home}/apps/#{domain} --database_config config/database.production.yml")
   # Thin
   elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
@@ -299,7 +299,7 @@ when 'start'
 when 'stop'
   system("cd #{home}/apps/#{domain}; sudo -u www-data #{home}/apps/#{domain}/app-down") if File.exists?("#{home}/apps/#{domain}/app-down")
   # Cilantro
-  if File.exists?("#{home}/apps/#{domain}/config/cilantro.yml")
+  if File.exists?("#{home}/apps/#{domain}/lib/cilantro.rb")
     system("cilantro stop #{home}/apps/#{domain}")
   # Thin
   elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
