@@ -1,0 +1,12 @@
+#/bin/bash
+
+cp init.d_cilantro /etc/init.d/cilantro
+
+mkdir -p /usr/local/bin
+cp cilantro /usr/local/bin
+cp linode /usr/local/bin
+cp site /usr/local/bin
+
+mkdir -p /home/git/defaults
+cp post-receive /home/git/defaults
+cp sample-site* /home/git/defaults

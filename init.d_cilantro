@@ -16,6 +16,7 @@ PATH=/sbin:/usr/sbin:/bin:/usr/bin
 RUN_AS="sudo -u www-data -H"
 CILANTRO=/usr/local/bin/cilantro
 SITES_LOCATION=/home/*/apps/*
+RACK_ENV=production
 
 test -x $CILANTRO || exit 0
 
