@@ -51,6 +51,7 @@ else
   YAML.write_defaults_to_file("/home/git/apps/#{domain}/config/production.yml", YAML.load_file("/home/git/defaults/production.yml"))
   system("echo production > RACK_ENV")
 end
+ENV['GIT_DIR'] = "/home/git/repositories/#{domain}.git"
 commits_included_migration = !!(`git whatchanged #{latest_commit ? latest_commit+'..HEAD ' : ''}| grep -E "\\<A\\>\\W+\\<config/migrations"`.chomp =~ /config\/migrations\/.+\.rb/)
 commits_included_gems = !!(`git whatchanged #{latest_commit ? latest_commit+'..HEAD ' : ''}| grep -E "\\<A\\>\\W+\\<.gems"`.chomp =~ /\.gems/)
 

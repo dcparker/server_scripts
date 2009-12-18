@@ -26,8 +26,8 @@ end
 optparse.parse!
 
 action = ARGV[0]
-domain = ARGV[1]
-branch = ARGV[2] || 'master'
+domain = Dir.pwd.match(/([^\\\/]+)/)[1]
+branch = ARGV[1] || 'master'
 site_dir = Dir.pwd
 
 def with_gitosis_config
