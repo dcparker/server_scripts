@@ -1,12 +1,23 @@
-#/bin/bash
+#!/usr/bin/env ruby
 
-cp init.d_cilantro /etc/init.d/cilantro
+`cp init.d_cilantro /etc/init.d/cilantro`
+puts "Installed startup scripts."
 
-mkdir -p /usr/local/bin
-cp cilantro /usr/local/bin
-cp linode /usr/local/bin
-cp site /usr/local/bin
+`mkdir -p /usr/local/bin`
+`cp cilantro /usr/local/bin`
+`cp linode /usr/local/bin`
+`cp site /usr/local/bin`
+puts "Installed control scripts."
 
-mkdir -p /home/git/defaults
-cp post-receive /home/git/defaults
-cp sample-site* /home/git/defaults
+`mkdir -p /home/git/defaults`
+`cp post-receive /home/git/defaults`
+`cp post-receive-script /home/git/defaults`
+`cp sample-site* /home/git/defaults`
+puts "Installed defaults."
+
+count = 0
+Dir.glob("/home/git/repositories/*").each do |repo|
+  `cp post-receive #{repo}/hooks/post-receive`
+  count += 1
+end
+puts "Installed into #{count} repositories..."
