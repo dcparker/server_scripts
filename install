@@ -12,6 +12,7 @@ puts "Installed control scripts."
 `mkdir -p /home/git/defaults`
 `cp post-receive /home/git/defaults`
 `cp post-receive-script /home/git/defaults`
+`chmod o+x /home/git/defaults/post-receive-script`
 `cp sample-site* /home/git/defaults`
 
 puts "Installed defaults."
