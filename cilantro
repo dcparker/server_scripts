@@ -55,19 +55,27 @@ def report_error(e)
   if File.exists?("config/#{ENV['RACK_ENV']}.yml")
     jabber = YAML.load_file("config/#{ENV['RACK_ENV']}.yml") || {}
     if jabber[:notify]
+      err_msg = "#{e.inspect}\n#{e.backtrace.join("\n")}"
       begin
-        require 'rubygems'
         require 'xmpp4r'
         client = Jabber::Client.new(Jabber::JID.new("#{jabber[:username]}/cilantro"))
         client.connect('talk.google.com', '5222')
         client.auth(jabber[:password])
         client.send(Jabber::Presence.new.set_type(:available))
-        msg = Jabber::Message.new(jabber[:notify], "#{e.inspect}\n#{e.backtrace.join("\n")}")
+        msg = Jabber::Message.new(jabber[:notify], err_msg)
         msg.type = :chat
         client.send(msg)
         client.close
       rescue => f
-        raise f
+        begin
+          require 'gmail'
+          gm = Gmail.new(jabber[:username], jabber[:password])
+          msg = gm.new_message
+          msg.content = err_msg
+          gm.send_email(msg)
+        rescue => g
+          raise g
+        end
       end
     else
       raise e
