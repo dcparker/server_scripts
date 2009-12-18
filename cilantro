@@ -122,7 +122,7 @@ optparse = OptionParser.new do |opts|
 end
 
 # FIRST default setting, if there is a file named RACK_ENV, read it. Or assume development until told otherwise.
-ENV['RACK_ENV'] = File.exists?('RACK_ENV') ? File.read('RACK_ENV').chomp : 'development'
+ENV['RACK_ENV'] ||= File.exists?('RACK_ENV') ? File.read('RACK_ENV').chomp : 'development'
 optparse.parse! unless ARGV[0] == 'git'
 
 $action = ARGV[0]
