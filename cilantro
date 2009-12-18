@@ -163,7 +163,7 @@ when File.exists?("#{directory}/config/#{ENV['RACK_ENV']}.yml")
 else
   {}
 end || {}
-ENV['RACK_ENV'] = $config[:environment] if $config[:environment] && !$options[:manual_environment]
+ENV['RACK_ENV'] = $config[:environment].to_s if $config[:environment] && !$options[:manual_environment]
 
 if ($options[:config] || (!$options[:specified_port] && File.exists?("#{directory}/config/#{ENV['RACK_ENV']}.yml"))) && $action =~ /start/
   if $config.is_a?(Hash)
