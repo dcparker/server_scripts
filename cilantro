@@ -99,9 +99,6 @@ optparse = OptionParser.new do |opts|
     $options[:specified_port] = true
   end
 
-  # FIRST default setting, if there is a file named RACK_ENV, read it. Or assume development until told otherwise.
-  ENV['RACK_ENV'] ||= File.exists?('RACK_ENV') ? File.read('RACK_ENV').chomp : 'development'
-  puts "RACK_ENV 1: #{ENV['RACK_ENV']}"
   opts.on( '-e', '--environment ENV', "Set the environment manually (defaults to RACK_ENV or development)") do |env|
     $options[:manual_environment] = ENV['RACK_ENV'] = env
     puts "RACK_ENV 2: #{ENV['RACK_ENV']}"
@@ -142,6 +139,10 @@ end
 if directory == '.'
   directory = Dir.pwd
 end
+
+# FIRST default setting, if there is a file named RACK_ENV, read it. Or assume development until told otherwise.
+ENV['RACK_ENV'] ||= File.exists?(directory+'/RACK_ENV') ? File.read(directory+'/RACK_ENV').chomp : 'development'
+puts "RACK_ENV 1: #{ENV['RACK_ENV']}"
 
 puts "Using database config #{$options[:database_config]}" if $options[:database_config]
 $options[:database_config] = nil if $options[:database_config] && !File.exists?($options[:database_config]) && !File.exists?(directory + '/' + $options[:database_config])
