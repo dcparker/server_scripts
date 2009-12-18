@@ -60,13 +60,13 @@ puts "Activating the application..."
 if `sudo site list` =~ /#{domain}/
   # Update and restart the app
   system("sudo site activate #{domain} --no-start")
-  if commits_included_migration
-    puts "Migrating the database..."
-    system("rake db:migrate:up")
-  end
   if commits_included_gems
     puts "Installing new gems..."
     system("rake gems:refresh:production")
+  end
+  if commits_included_migration
+    puts "Migrating the database..."
+    system("rake db:migrate:up")
   end
   puts "Restarting the application..."
   system("sudo site restart #{domain}")
