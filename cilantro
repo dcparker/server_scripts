@@ -8,6 +8,11 @@
 # restart that same program as you wish. All you have to give it a
 # directory to run it from, but you'll probably want to give it a port too.
 
+Kernel.trap('INT') {
+  puts "Exiting..."
+  exit
+}
+
 require 'optparse'
 
 def safefork
@@ -47,8 +52,8 @@ end
 def report_error(e)
   # Make the magic happen!
   # (jabber me when there's an error loading an app)
-  if File.exists?('config/cilantro.yml')
-    jabber = YAML.load_file('config/cilantro.yml') || {}
+  if File.exists?("config/#{ENV['RACK_ENV']}.yml")
+    jabber = YAML.load_file("config/#{ENV['RACK_ENV']}.yml") || {}
     if jabber[:notify]
       begin
         require 'rubygems'
@@ -94,6 +99,10 @@ optparse = OptionParser.new do |opts|
     $options[:specified_port] = true
   end
 
+  opts.on( '-e', '--environment ENV', "Set the environment manually (defaults to RACK_ENV or development)") do |env|
+    ENV['RACK_ENV'] = env
+  end
+
   $options[:config] = nil
   opts.on( '-c', '--config CONFIG', "Use config file CONFIG" ) do |conf|
     raise if !File.exists?(conf)
@@ -116,7 +125,7 @@ optparse.parse! unless ARGV[0] == 'git'
 action = ARGV[0]
 directory = ARGV[1]
 if directory.nil?
-  if action =~ /^(run|start|stop|status|restart|new|import|update|git|gitwork)$/
+  if action =~ /^(run|start|stop|status|restart|new|update|git|gitwork)$/
     directory = Dir.pwd
   elsif action.nil?
     directory = Dir.pwd
@@ -138,13 +147,13 @@ require 'yaml'
 $config = case
 when $options[:config]
   YAML.load_file($options[:config])
-when File.exists?("#{directory}/config/cilantro.yml")
-  YAML.load_file("#{directory}/config/cilantro.yml")
+when File.exists?("#{directory}/config/#{ENV['RACK_ENV']}.yml")
+  YAML.load_file("#{directory}/config/#{ENV['RACK_ENV']}.yml")
 else
   {}
 end || {}
 
-if ($options[:config] || (!$options[:specified_port] && File.exists?("#{directory}/config/cilantro.yml"))) && action =~ /start/
+if ($options[:config] || (!$options[:specified_port] && File.exists?("#{directory}/config/#{ENV['RACK_ENV']}.yml"))) && action =~ /start/
   if $config.is_a?(Hash)
     $options[:host] = $config[:host] if $config.has_key?(:host) && !$options[:specified_host]
     ports = $config[:ports] || []
@@ -161,7 +170,7 @@ end
 Dir.chdir(directory) if File.directory?(directory)
 write_dir = File.directory?('log') ? 'log' : 'config'
 
-RACK_ENV = (ENV['RACK_ENV'] = ($config[:environment] || 'development').to_s).to_sym
+RACK_ENV = (ENV['RACK_ENV'] ||= ($config[:environment] || 'development').to_s).to_sym
 
 def run_app!
   require 'lib/cilantro'
@@ -172,7 +181,30 @@ def run_app!
     :host => $options[:host],
     :port => $options[:port]
   )
-  Cilantro.app.run!
+
+  # Need to add an EM.watch_dir method, to notice files added, modified, or deleted.
+  #   EM.watch_file("/tmp/foo", Handler)
+  # where Handler is a class that on method_missing simply reloads the app. :)
+  # Do need to think about what to do when reloading the app fails due to error.
+  # Also could implement the EM way to finish outstanding requests before quitting.
+
+  Kernel.trap('HUP') {
+    puts "Restarting..."
+    exit
+  }
+  at_exit {
+    exec "#{$0} #{ARGV.join(' ')}"
+  }
+  begin
+    Cilantro.app.run!
+  rescue RuntimeError => e
+    if e.to_s == 'no acceptor'
+      warn "\n\t*** Can't use port #{$options[:port]}, someone's already there! ***\n"
+      exit!
+    else
+      warn "\n\tFatal error: #{e.inspect}\n\t#{e.backtrace.join("\n\t")}\n"
+    end
+  end
 end
 
 begin
@@ -293,24 +325,40 @@ begin
   when 'restart'
     puts "sorry, not yet implemented...\n\nWhat I want here is to restart all cilantro services that match the commandline specifications, but each with the full options they started with."
   when 'new'
-    system "git clone git://github.com/dcparker/cilantro.git \"#{directory}\""
+    ENV['GIT_DIR'] = "#{ENV['HOME']}/.cilantro.git"
+    system "mkdir \"#{directory}\""
     Dir.chdir(directory)
-    system "mv .git .cilantro.git"
+    if File.directory?(ENV['GIT_DIR'])
+      system "git reset --hard HEAD"
+    else
+      system "git clone git://github.com/dcparker/cilantro.git \"#{directory}\""
+    end
     puts "Run 'git remote add origin ...' to add an origin for your project. Or if running on linode, simply run 'linode add domain.com'"
     puts "Whenever the cilantro project is updated, you can keep up to date by running 'cilantro update'"
-  when 'import'
-    system "git clone git://github.com/dcparker/cilantro.git"
-    system "mv cilantro/.git .cilantro.git"
-    system "rm -rf cilantro/"
+    exec "mate ." if `which mate`
   when 'update'
-    ENV['GIT_DIR'] = '.cilantro.git'
-    system "git stash save"
-    system "git pull origin cilantro"
-    system "git stash pop"
+    last_commit = `git config cilantro.version`.chomp
+    ENV['GIT_DIR'] = "#{ENV['HOME']}/.cilantro.git"
+    last_commit ||= `git log -n1`.split(/\n/)[0].split(/\s/)[1]
+    unless File.directory?("#{ENV['HOME']}/.cilantro.git")
+      system "git clone git://github.com/dcparker/cilantro.git .cgit.foobar"
+      system "rm -rf .cgit.foobar"
+    end
+    deliberate_diff = `git diff #{last_commit}`
+    `git reset --hard #{last_commit}`
+    `git pull origin cilantro`
+    `git reset --hard cilantro`
+      # Save the latest cilantro version that we're working from here.
+      ENV['GIT_DIR'] = ".git"
+      last_commit = `git log -n1`.split(/\n/)[0].split(/\s/)[1]
+      `git config cilantro.version #{last_commit}`
+    p = IO.popen("patch --batch --verbose -p1", 'w')
+    p.puts deliberate_diff
+    p.close
   when 'git'
-    unless ENV['GIT_DIR'] == '.cilantro.git'
-      ENV['GIT_DIR'] = '.cilantro.git'
-      puts "Now using .cilantro.git. Type exit to return"
+    unless ENV['GIT_DIR'] == "#{ENV['HOME']}/.cilantro.git"
+      ENV['GIT_DIR'] = "#{ENV['HOME']}/.cilantro.git"
+      puts "Now using #{ENV['HOME']}/.cilantro.git. Type exit to return"
       exec "bash --login"
     end
   end
