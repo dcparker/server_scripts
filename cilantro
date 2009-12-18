@@ -99,8 +99,9 @@ optparse = OptionParser.new do |opts|
     $options[:specified_port] = true
   end
 
+  ENV['RACK_ENV'] = 'development'
   opts.on( '-e', '--environment ENV', "Set the environment manually (defaults to RACK_ENV or development)") do |env|
-    ENV['RACK_ENV'] = env
+    $options[:manual_environment] = ENV['RACK_ENV'] = env
   end
 
   $options[:config] = nil
@@ -120,6 +121,8 @@ optparse = OptionParser.new do |opts|
   end
 end
 
+# FIRST default setting, if there is a file named RACK_ENV, read it. Or assume development until told otherwise.
+ENV['RACK_ENV'] = File.exists?('RACK_ENV') ? File.read('RACK_ENV').chomp : 'development'
 optparse.parse! unless ARGV[0] == 'git'
 
 $action = ARGV[0]
@@ -152,6 +155,7 @@ when File.exists?("#{directory}/config/#{ENV['RACK_ENV']}.yml")
 else
   {}
 end || {}
+ENV['RACK_ENV'] = $config[:environment] if $config[:environment] && !$options[:manual_environment]
 
 if ($options[:config] || (!$options[:specified_port] && File.exists?("#{directory}/config/#{ENV['RACK_ENV']}.yml"))) && $action =~ /start/
   if $config.is_a?(Hash)
@@ -170,7 +174,7 @@ end
 Dir.chdir(directory) if File.directory?(directory)
 write_dir = File.directory?('log') ? 'log' : 'config'
 
-RACK_ENV = (ENV['RACK_ENV'] ||= ($config[:environment] || 'development').to_s).to_sym
+RACK_ENV = ENV['RACK_ENV'].to_sym
 
 def run_app!
   require 'lib/cilantro'
@@ -237,7 +241,7 @@ begin
     # Check whether environment is sane...
     #   - config/init
     if File.exists?('config/init.rb')
-      puts "[START] Cilantro app in #{directory} on port #{$options[:host]}:#{$options[:port]}..."
+      puts "[START] Cilantro app in #{ENV['RACK_ENV']} in #{directory} on port #{$options[:host]}:#{$options[:port]}..."
       puts "Started #{ports.length+1} Cilantro services." unless ports.empty?
 
       # Fork to a daemon now...
