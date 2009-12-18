@@ -99,7 +99,8 @@ optparse = OptionParser.new do |opts|
     $options[:specified_port] = true
   end
 
-  ENV['RACK_ENV'] = 'development'
+  # FIRST default setting, if there is a file named RACK_ENV, read it. Or assume development until told otherwise.
+  ENV['RACK_ENV'] ||= File.exists?('RACK_ENV') ? File.read('RACK_ENV').chomp : 'development'
   opts.on( '-e', '--environment ENV', "Set the environment manually (defaults to RACK_ENV or development)") do |env|
     $options[:manual_environment] = ENV['RACK_ENV'] = env
   end
@@ -121,8 +122,6 @@ optparse = OptionParser.new do |opts|
   end
 end
 
-# FIRST default setting, if there is a file named RACK_ENV, read it. Or assume development until told otherwise.
-ENV['RACK_ENV'] ||= File.exists?('RACK_ENV') ? File.read('RACK_ENV').chomp : 'development'
 optparse.parse! unless ARGV[0] == 'git'
 
 $action = ARGV[0]
