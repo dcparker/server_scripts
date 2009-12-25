@@ -24,7 +24,7 @@ test -x $CILANTRO || exit 0
 
 APPS=
 for app in $SITES_LOCATION; do
-  if [ -f $app/config/cilantro.yml ]; then
+  if [ -f $app/lib/cilantro.rb ]; then
     APPS="$APPS $app"
   fi
 done
