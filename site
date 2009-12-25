@@ -101,15 +101,13 @@ file_domain = matches[0] if matches.length > 0
 case ARGV[0]
 when 'new'
   # 1) Gather some data
-  iterator = if File.exists?('.site_iterator')
-    File.read('.site_iterator').gsub(/\D/,'').to_i
-  else
-    0
-  end + 1
-  File.open('.site_iterator', 'w') do |file|
-    file << iterator
-  end
+
+  iterator = 1
+  # Go through the current site list and find a port gap (allowing up to 10 ports for each site)
+  iterator += 1 until Dir.glob("#{ENV['HOME']}/SiteConfigs/#{iterator}-*").empty?
+
   ports = [port_range + iterator*10]
+
   until ports.length == options[:ports]+1 # We have one port for nginx, plus one for each balanced service
     ports[ports.length] = ports.last+1
   end
