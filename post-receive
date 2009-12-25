@@ -1,4 +1,4 @@
 #!/usr/bin/env ruby
 
 domain = File.expand_path(File.dirname(__FILE__)).match(/\/([^\/]+)\.git/)[1]
-exec("/home/git/defaults/post-receive-script #{domain}")
+system("/home/git/defaults/post-receive-script #{domain}")

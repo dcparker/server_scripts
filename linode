@@ -106,13 +106,13 @@ when 'add'
   # Ping linode administration app to insert the post-receive hook and run it as @git.
     puts "Initializing git hooks and starting site for the first time..."
     # puts `curl -s -d "domain=#{domain}" http://linode_admin:linode_me_nidole@linode:8999/init_git_hooks_please`
-    system("ssh dcparker@linode \"sudo bash -c \\\"echo \\\\\"/usr/bin/env ruby /home/git/defaults/post-receive\\\\\" > /home/git/repositories/#{domain}.git/hooks/post-receive; chown git:git /home/git/repositories/#{domain}.git/hooks/post-receive; chmod 755 /home/git/repositories/#{domain}.git/hooks/post-receive; cd /home/git/repositories/#{domain}.git/hooks; sudo -H -u git ./post-receive\\\"\"")
+    system("ssh linode \"sudo bash -c \\\"echo \\\\\"/usr/bin/env ruby /home/git/defaults/post-receive\\\\\" > /home/git/repositories/#{domain}.git/hooks/post-receive; chown git:git /home/git/repositories/#{domain}.git/hooks/post-receive; chmod 755 /home/git/repositories/#{domain}.git/hooks/post-receive; cd /home/git/repositories/#{domain}.git/hooks; sudo -H -u git ./post-receive\\\"\"")
     # system("cp public/post-receive /home/git/repositories/#{@domain}.git/hooks/post-receive")
     # system("chown git:git /home/git/repositories/#{@domain}.git/hooks/post-receive")
     # system("chmod 755 /home/git/repositories/#{@domain}.git/hooks/post-receive")
     # puts "Starting site for the first time..."
     # puts `curl -s -d "domain=#{domain}" http://linode_admin:linode_me_nidole@linode:8999/run_post_receive_hook`
-    # system("ssh dcparker@linode \"sudo bash -c \\\"cd /home/git/repositories/#{domain}.git/hooks; sudo -H -u git ./post-receive\\\"\"")
+    # system("ssh linode \"sudo bash -c \\\"cd /home/git/repositories/#{domain}.git/hooks; sudo -H -u git ./post-receive\\\"\"")
 when 'remove'
   # Remove from the gitosis-admin config
     puts "Removing #{domain} from the server site list..."
@@ -123,7 +123,7 @@ when 'remove'
   # Deactivate and remove the site from the server (repo, configs, app)
     puts "Removing the repository from the server..."
     # puts `curl -s -d "domain=#{domain}" http://linode_admin:linode_me_nidole@linode:8999/remove_site`
-    system("ssh dcparker@linode \"sudo bash -c \\\"sudo -H -u git sudo site deactivate #{domain}; sudo -H -u git sudo site remove #{domain}; rm -rf /home/git/repositories/#{domain}.git; rm -rf /home/git/apps/#{domain}\\\"\"")
+    system("ssh linode \"sudo bash -c \\\"sudo -H -u git sudo site deactivate #{domain}; sudo -H -u git sudo site remove #{domain}; rm -rf /home/git/repositories/#{domain}.git; rm -rf /home/git/apps/#{domain}\\\"\"")
     # ret = `sudo -H -u git sudo site deactivate #{@domain}`
     # ret << `sudo -H -u git sudo site remove #{@domain}`
     # ret << `rm -rf /home/git/repositories/#{@domain}.git`
@@ -148,7 +148,10 @@ when 'remove'
     File.open(".git/config", 'w') { |file| file << new_config }
 when 'restart'
   puts "Restarting #{domain}..."
-  system("ssh dcparker@linode \"sudo bash -c \\\"cd /home/git/repositories/#{domain}.git/hooks; sudo -H -u git ./post-receive\\\"\"")
+  system("ssh linode \"sudo bash -c \\\"cd /home/git/repositories/#{domain}.git/hooks; sudo -H -u git ./post-receive\\\"\"")
+when 'gems:refresh'
+  puts "Refreshing gems for #{domain}..."
+  system("ssh linode \"sudo bash -c \\\"cd /home/git/apps/#{domain}; sudo -H -u git rake gems:refresh:production\\\"\"")
 when 'list'
   # Simply list the active website repositories
   with_gitosis_config do |sites|
@@ -156,7 +159,9 @@ when 'list'
     puts "Sites:\n\t" + sites.keys.join("\n\t")
   end
 when 'migrate'
-  system("ssh dcparker@linode \"sudo bash -c \\\"cd /home/git/apps/#{domain}; sudo -H -u git rake db:migrate\\\"\"")
+  system("ssh linode \"sudo bash -c \\\"cd /home/git/apps/#{domain}; sudo -H -u git rake db:migrate\\\"\"")
+when 'upgrade_server'
+  system("ssh linode \"cd server_scripts; git pull; sudo ./install\"")
 else
   puts optparse
 end
