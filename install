@@ -19,7 +19,7 @@ puts "Installed defaults."
 
 count = 0
 Dir.glob("/home/git/repositories/*").each do |repo|
-  `cp post-receive #{repo}/hooks/post-receive`
+  `cat post-receive > #{repo}/hooks/post-receive`
   count += 1
 end
 puts "Installed into #{count} repositories..."

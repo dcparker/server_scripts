@@ -106,7 +106,7 @@ when 'add'
   # Ping linode administration app to insert the post-receive hook and run it as @git.
     puts "Initializing git hooks and starting site for the first time..."
     # puts `curl -s -d "domain=#{domain}" http://linode_admin:linode_me_nidole@linode:8999/init_git_hooks_please`
-    system("ssh linode \"sudo bash -c \\\"echo \\\\\"/usr/bin/env ruby /home/git/defaults/post-receive\\\\\" > /home/git/repositories/#{domain}.git/hooks/post-receive; chown git:git /home/git/repositories/#{domain}.git/hooks/post-receive; chmod 755 /home/git/repositories/#{domain}.git/hooks/post-receive; cd /home/git/repositories/#{domain}.git/hooks; sudo -H -u git ./post-receive\\\"\"")
+    system("ssh linode \"sudo bash -c \\\"cat /home/git/defaults/post-receive > /home/git/repositories/#{domain}.git/hooks/post-receive; chown git:git /home/git/repositories/#{domain}.git/hooks/post-receive; chmod 755 /home/git/repositories/#{domain}.git/hooks/post-receive; cd /home/git/repositories/#{domain}.git/hooks; sudo -H -u git ./post-receive\\\"\"")
     # system("cp public/post-receive /home/git/repositories/#{@domain}.git/hooks/post-receive")
     # system("chown git:git /home/git/repositories/#{@domain}.git/hooks/post-receive")
     # system("chmod 755 /home/git/repositories/#{@domain}.git/hooks/post-receive")
@@ -149,6 +149,9 @@ when 'remove'
 when 'restart'
   puts "Restarting #{domain}..."
   system("ssh linode \"sudo bash -c \\\"cd /home/git/repositories/#{domain}.git/hooks; sudo -H -u git ./post-receive\\\"\"")
+when 'reset'
+  puts "Hard-resetting #{domain}..."
+  system("ssh linode \"sudo bash -c \\\"sudo -H -u git sudo site deactivate #{domain}; sudo -H -u git sudo site remove #{domain}; rm -rf /home/git/apps/#{domain}; cat /home/git/defaults/post-receive > /home/git/repositories/#{domain}.git/hooks/post-receive; chown git:git /home/git/repositories/#{domain}.git/hooks/post-receive; chmod 755 /home/git/repositories/#{domain}.git/hooks/post-receive; cd /home/git/repositories/#{domain}.git/hooks; sudo -H -u git ./post-receive\\\"\"")
 when 'gems:refresh'
   puts "Refreshing gems for #{domain}..."
   system("ssh linode \"sudo bash -c \\\"cd /home/git/apps/#{domain}; sudo -H -u git rake gems:refresh:production\\\"\"")
