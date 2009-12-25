@@ -56,7 +56,8 @@ if latest_commit
   commits_included_gems = !!(`git whatchanged #{latest_commit ? latest_commit+'..HEAD ' : ''}| grep -E "\\W+(?:M|A)\\W+.gems"`.chomp =~ /\.gems/)
   commits_included_migration = !!(`git whatchanged #{latest_commit ? latest_commit+'..HEAD ' : ''}| grep -E "\\<A\\>\\W+\\<config/migrations"`.chomp =~ /config\/migrations\/.+\.rb/)
 else
-  commits_included_gems = commits_included_migration = true
+  commits_included_gems = true
+  commits_included_migration = true
 end
 
 # if site configs don't exist, create them; otherwise just restart the app
@@ -78,6 +79,10 @@ else
   # Create and activate the app if it doesn't exist
   system("sudo site new #{domain}")
   system("sudo site activate #{domain} --no-start")
+  if commits_included_gems
+    puts "Installing new gems..."
+    system("rake gems:refresh:production")
+  end
   if commits_included_migration
     puts "Migrating the database..."
     system("rake db:migrate:up")
