@@ -101,7 +101,7 @@ when 'git-push'
   # Git push this repository to the new repo location
   puts "Pushing to linode..."
   Dir.chdir(site_dir)
-  system("git remote add linode git@linode:#{domain}.git")
+  system("git remote add linode git@linode:#{repo_name}.git")
   system("git push linode master")
 when 'add'
   # Add to the gitosis-admin config
