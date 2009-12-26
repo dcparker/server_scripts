@@ -43,7 +43,7 @@ if File.exists?(app_dir)
   YAML.write_defaults_to_file("/home/git/apps/#{domain}/config/production.yml", cilantro_config)
 else
   puts "Creating application..."
-  system("git clone /home/git/repositories/#{domain}.git #{app_dir}")
+  system("git clone /home/git/repositories/#{domain}.git \"#{app_dir}\"")
   Dir.chdir(app_dir)
   system("mkdir log")
   system("chmod 777 log")
@@ -65,10 +65,8 @@ puts "Activating the application..."
 if `sudo site list` =~ /#{domain}/
   # Update and restart the app
   system("sudo site activate #{domain} --no-start")
-  if commits_included_gems
-    puts "Installing new gems..."
-    system("rake gems:refresh:production")
-  end
+  puts "Installing new gems if necessary..."
+  system("rake gems:refresh:production")
   if commits_included_migration
     puts "Migrating the database..."
     system("rake db:migrate:up")
