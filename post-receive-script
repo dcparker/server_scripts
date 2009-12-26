@@ -53,6 +53,8 @@ system("echo production > RACK_ENV")
 
 ENV['GIT_DIR'] = "/home/git/repositories/#{domain}.git"
 if latest_commit
+  puts "Last commit: #{latest_commit}"
+  puts "Now at: " + `git log -n 1 |grep -E -o "\\w{40}$"`.chomp
   puts "CHANGELOG:" + `git whatchanged #{latest_commit}..HEAD`
   commits_included_gems = !!(`git whatchanged #{latest_commit}..HEAD`.chomp =~ /\W+[MA]\W+\.?gems/)
   commits_included_migration = !!(`git whatchanged #{latest_commit}..HEAD | grep -E "\\<A\\>\\W+\\<config/migrations"`.chomp =~ /config\/migrations\/.+\.rb/)
