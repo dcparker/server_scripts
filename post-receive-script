@@ -77,7 +77,7 @@ else
   # Create and activate the app if it doesn't exist
   system("sudo site new #{domain}")
   system("sudo site activate #{domain} --no-start")
-  puts "Installing new gems..."
+  puts "Installing new gems if necessary..."
   system("rake gems:refresh:production")
   if commits_included_migration
     puts "Migrating the database..."

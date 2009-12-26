@@ -14,7 +14,6 @@ puts "Installed control scripts."
 `cp post-receive-script /home/git/defaults`
 `chmod o+x /home/git/defaults/post-receive-script`
 `cp sample-site* /home/git/defaults`
-
 puts "Installed defaults."
 
 count = 0
@@ -22,4 +21,4 @@ Dir.glob("/home/git/repositories/*").each do |repo|
   `cat post-receive > #{repo}/hooks/post-receive`
   count += 1
 end
-puts "Installed into #{count} repositories..."
+puts "Installed post-receive into #{count} repositories."
