@@ -223,7 +223,7 @@ when 'activate'
     end
     # Let anything else overwrite the 'defaults'
     linode_config.merge!(present_config)
-  end
+  end if File.directory?("#{home}/apps/#{domain}/config")
 
   # Update cilantro's production.yml to reflect the correct ports used for this app's services.
   if File.exists?("#{home}/apps/#{domain}/lib/cilantro.rb")
