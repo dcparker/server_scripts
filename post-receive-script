@@ -53,7 +53,8 @@ system("echo production > RACK_ENV")
 
 ENV['GIT_DIR'] = "/home/git/repositories/#{domain}.git"
 if latest_commit
-  commits_included_gems = !!(`git whatchanged #{latest_commit ? latest_commit+'..HEAD ' : ''}| grep -E "\\W+(M|A)\\W+.gems"`.chomp =~ /\.gems/)
+  commits_included_gems = !!(`git whatchanged #{latest_commit ? latest_commit+'..HEAD ' : ''}| grep -E "\\W+(M|A)\\W+.gems"`.chomp =~ /\.gems/) ||
+                          !!(`git whatchanged #{latest_commit ? latest_commit+'..HEAD ' : ''}| grep -E "\\W+(M|A)\\W+gems/"`.chomp =~ /cache/)
   commits_included_migration = !!(`git whatchanged #{latest_commit ? latest_commit+'..HEAD ' : ''}| grep -E "\\<A\\>\\W+\\<config/migrations"`.chomp =~ /config\/migrations\/.+\.rb/)
 else
   commits_included_gems = true
@@ -65,8 +66,10 @@ puts "Activating the application..."
 if `sudo site list` =~ /#{domain}/
   # Update and restart the app
   system("sudo site activate #{domain} --no-start")
-  puts "Installing new gems if necessary..."
-  system("rake gems:refresh:production")
+  if commits_included_gems
+    puts "Installing new gems..."
+    system("rake gems:refresh:production")
+  end
   if commits_included_migration
     puts "Migrating the database..."
     system("rake db:migrate:up")
@@ -77,8 +80,10 @@ else
   # Create and activate the app if it doesn't exist
   system("sudo site new #{domain}")
   system("sudo site activate #{domain} --no-start")
-  puts "Installing new gems if necessary..."
-  system("rake gems:refresh:production")
+  if commits_included_gems
+    puts "Installing new gems..."
+    system("rake gems:refresh:production")
+  end
   if commits_included_migration
     puts "Migrating the database..."
     system("rake db:migrate:up")
