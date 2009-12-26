@@ -87,6 +87,22 @@ def modify_gitosis_config(msg)
 end
 
 case action
+when 'git-push'
+  repo_name = branch
+  puts "Adding repo `#{repo_name}' to the server..."
+  # check it out into ~/.gitosis-admin if not there already
+    system "git clone git@linode:gitosis-admin.git #{ENV['HOME']}/.gitosis-admin" unless File.directory?("#{ENV['HOME']}/.gitosis-admin")
+    Dir.chdir("#{ENV['HOME']}/.gitosis-admin")
+  # modify the config
+    modify_gitosis_config("Added site #{repo_name}.") do |sites|
+      # add the entry
+      sites[repo_name] = {:section => ['group', repo_name], 'writable' => repo_name, 'members' => "#{ENV['USER']}"}
+    end
+  # Git push this repository to the new repo location
+  puts "Pushing to linode..."
+  Dir.chdir(site_dir)
+  system("git remote add linode git@linode:#{domain}.git")
+  system("git push linode master")
 when 'add'
   # Add to the gitosis-admin config
     puts "Adding #{domain} to the server site list..."
