@@ -203,7 +203,7 @@ def run_app!
 
   begin
     server = Rack::Handler.get('thin')
-    server.run Cilantro.app, :Host => $options[:host], :Port => $options[:port]
+    server.run Cilantro.app, :Host => Cilantro.server_options[:host], :Port => Cilantro.server_options[:port]
   rescue RuntimeError => e
     if e.to_s == 'no acceptor'
       warn "\n\t*** Can't use port #{$options[:port]}, someone's already there! ***\n"
