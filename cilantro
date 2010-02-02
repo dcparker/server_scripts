@@ -55,27 +55,19 @@ def report_error(e)
   if File.exists?("config/#{ENV['RACK_ENV']}.yml")
     jabber = YAML.load_file("config/#{ENV['RACK_ENV']}.yml") || {}
     if jabber[:notify]
-      err_msg = "#{e.inspect}\n#{e.backtrace.join("\n")}"
       begin
+        require 'rubygems'
         require 'xmpp4r'
         client = Jabber::Client.new(Jabber::JID.new("#{jabber[:username]}/cilantro"))
         client.connect('talk.google.com', '5222')
         client.auth(jabber[:password])
         client.send(Jabber::Presence.new.set_type(:available))
-        msg = Jabber::Message.new(jabber[:notify], err_msg)
+        msg = Jabber::Message.new(jabber[:notify], "#{e.inspect}\n#{e.backtrace.join("\n")}")
         msg.type = :chat
         client.send(msg)
         client.close
       rescue => f
-        begin
-          require 'gmail'
-          gm = Gmail.new(jabber[:username], jabber[:password])
-          msg = gm.new_message
-          msg.content = err_msg
-          gm.send_email(msg)
-        rescue => g
-          raise g
-        end
+        raise f
       end
     else
       raise e
@@ -88,7 +80,7 @@ end
 $options = {}
 
 optparse = OptionParser.new do |opts|
-  opts.banner = "Usage: #{$0} [action=start] [directory=.] [options]"
+  opts.banner = "Usage: #{$0} [action=start|stop|status|restart|new|update|push|git] [directory=.] [options]"
 
   $options[:verbose] = false
   opts.on( '-v', '--verbose', "Show me what you're doing" ) do
@@ -107,6 +99,7 @@ optparse = OptionParser.new do |opts|
     $options[:specified_port] = true
   end
 
+  ENV['RACK_ENV'] = 'development'
   opts.on( '-e', '--environment ENV', "Set the environment manually (defaults to RACK_ENV or development)") do |env|
     $options[:manual_environment] = ENV['RACK_ENV'] = env
   end
@@ -122,18 +115,25 @@ optparse = OptionParser.new do |opts|
     $options[:database_config] = conf
   end
 
+  $options[:message] = ''
+  opts.on( '-m MESSAGE', "Commit message for cilantro updates." ) do |m|
+    $options[:message] = m
+  end
+
   opts.on( '-h', '--help', 'Display this screen' ) do
     puts opts
     exit
   end
 end
 
+# FIRST default setting, if there is a file named RACK_ENV, read it. Or assume development until told otherwise.
+ENV['RACK_ENV'] = File.exists?('RACK_ENV') ? File.read('RACK_ENV').chomp : 'development'
 optparse.parse! unless ARGV[0] == 'git'
 
 $action = ARGV[0]
 directory = ARGV[1]
 if directory.nil?
-  if $action =~ /^(run|start|stop|status|restart|new|update|git|gitwork)$/
+  if $action =~ /^(run|start|stop|status|restart|new|update|push|git)$/
     directory = Dir.pwd
   elsif $action.nil?
     directory = Dir.pwd
@@ -146,9 +146,6 @@ end
 if directory == '.'
   directory = Dir.pwd
 end
-
-# FIRST default setting, if there is a file named RACK_ENV, read it. Or assume development until told otherwise.
-ENV['RACK_ENV'] ||= File.exists?(directory+'/RACK_ENV') ? File.read(directory+'/RACK_ENV').chomp : 'development'
 
 puts "Using database config #{$options[:database_config]}" if $options[:database_config]
 $options[:database_config] = nil if $options[:database_config] && !File.exists?($options[:database_config]) && !File.exists?(directory + '/' + $options[:database_config])
@@ -163,7 +160,7 @@ when File.exists?("#{directory}/config/#{ENV['RACK_ENV']}.yml")
 else
   {}
 end || {}
-ENV['RACK_ENV'] = $config[:environment].to_s if $config[:environment] && !$options[:manual_environment]
+ENV['RACK_ENV'] = $config[:environment] if $config[:environment] && !$options[:manual_environment]
 
 if ($options[:config] || (!$options[:specified_port] && File.exists?("#{directory}/config/#{ENV['RACK_ENV']}.yml"))) && $action =~ /start/
   if $config.is_a?(Hash)
@@ -200,15 +197,9 @@ def run_app!
   # Do need to think about what to do when reloading the app fails due to error.
   # Also could implement the EM way to finish outstanding requests before quitting.
 
-  Kernel.trap('HUP') {
-    exit
-  }
-  at_exit {
-    puts "Restarting..."
-    exec "#{$0} #{ARGV.join(' ')}"
-  } if RACK_ENV == :development && $action == 'run'
   begin
-    Cilantro.app.run!
+    server = Rack::Handler.get('thin')
+    server.run Cilantro.app, :Host => $options[:host], :Port => $options[:port]
   rescue RuntimeError => e
     if e.to_s == 'no acceptor'
       warn "\n\t*** Can't use port #{$options[:port]}, someone's already there! ***\n"
@@ -348,15 +339,17 @@ begin
     puts "Run 'git remote add origin ...' to add an origin for your project. Or if running on linode, simply run 'linode add domain.com'"
     puts "Whenever the cilantro project is updated, you can keep up to date by running 'cilantro update'"
     exec "mate ." if `which mate`
+  when 'update-shared'
+    # Maybe ... to update the shared repo without checking it out.
   when 'update'
     last_commit = `git config cilantro.version`.chomp
     ENV['GIT_DIR'] = "#{ENV['HOME']}/.cilantro.git"
-    last_commit ||= `git log -n1`.split(/\n/)[0].split(/\s/)[1]
     unless File.directory?("#{ENV['HOME']}/.cilantro.git")
       system "git clone git://github.com/dcparker/cilantro.git .cgit.foobar"
       system "rm -rf .cgit.foobar"
     end
-    deliberate_diff = `git diff #{last_commit}`
+    last_commit ||= `git log -n1`.split(/\n/)[0].split(/\s/)[1]
+    deliberate_diff = `git diff #{last_commit} -p`
     `git reset --hard #{last_commit}`
     `git pull origin cilantro`
     `git reset --hard cilantro`
@@ -364,9 +357,70 @@ begin
       last_commit = `git log -n1`.split(/\n/)[0].split(/\s/)[1]
       ENV['GIT_DIR'] = ".git"
       `git config cilantro.version #{last_commit}`
-    p = IO.popen("patch --batch --verbose -p1", 'w')
-    p.puts deliberate_diff
-    p.close
+    if deliberate_diff.empty? # This really will only happen on an unaltered cilantro repo.
+      puts "No changes to reapply."
+    else
+      puts "Reapplying app diff..."
+      IO.popen("patch -u --force --no-backup-if-mismatch -p1", 'w') {|p|
+        p.puts deliberate_diff
+      }
+    end
+    puts "Updated to #{last_commit}."
+  when 'push'
+    # git checkout -- .
+    # rm bin/cilantro.rej lib/cilantro/templater/bootstrap.rb.rej lib/cilantro/templater/markdown.rb.rej lib/cilantro/templater/plain.rb.rej lib/cilantro/templater.rb.rej lib/cilantro/templater/erb.rb.rej lib/cilantro/templater/haml.rb.rej
+    # This is to update the Cilantro repo from a separate app. It ASSUMES YOU HAVE ACCESS to do so, and that the shared cilantro repo is already up to date.
+    # 1. record a diff since the last commit in the project repo
+    if $options[:message].empty?
+      puts "-m MESSAGE is NECESSARY when running cilantro-push!"
+      exit
+    end
+
+    puts "Recording state..."
+    cilantro_new_diff = `git diff --cached -p`
+    last_project_commit = `git log -n1`.split(/\n/)[0].split(/\s/)[1]
+
+    # 2. record changes since last cilantro update
+    last_cilantro_commit = `git config cilantro.version`.chomp
+    ENV['GIT_DIR'] = "#{ENV['HOME']}/.cilantro.git"
+    if last_cilantro_commit != `git log -n1`.split(/\n/)[0].split(/\s/)[1]
+      puts "Cilantro is not up to date in this project! Try stashing the changes and saving them later, or save a patch file and reapply it after updating Cilantro in this project."
+      exit
+    end
+    # Take off all of the cilantro changes, to record the project changes since last cilantro update.
+    IO.popen("patch -u -R --force --no-backup-if-mismatch -p1", 'w') {|p|
+      p.puts cilantro_new_diff
+    }
+    project_diff = `git diff #{last_cilantro_commit} -p`
+
+    # 3. reset to vanilla cilantro, apply the new cilantro code, then commit and push the changes
+    `git reset --hard #{last_cilantro_commit}`
+    puts "Applying changes to Cilantro..."
+    IO.popen("patch -u --force --no-backup-if-mismatch -p1", 'w') {|p|
+      p.puts cilantro_new_diff
+    }
+    # Make a list of all the files added/modified:
+    add_mod = cilantro_new_diff.scan(/^\+\+\+ b\/(.*)$/).flatten
+    `git add \"#{add_mod.join('" "')}\"` unless add_mod.empty?
+    # And a list of all the files that were deleted:
+    deleted = cilantro_new_diff.scan(/^\-\-\- a\/(.*)$/).flatten - add_mod
+    `git rm \"#{deleted.join('" "')}\"` unless deleted.empty?
+    `git commit -m \"#{$options[:message]}\"`
+    `git push`
+
+    # 4. restore the app to its original position and commit the cilantro update
+    puts "Restoring app..."
+    last_cilantro_commit = `git log -n1`.split(/\n/)[0].split(/\s/)[1]
+    ENV['GIT_DIR'] = ".git"
+    # Re-apply the project differences
+    IO.popen("patch --force --no-backup-if-mismatch -p1", 'w') {|p|
+      p.puts project_diff
+    }
+    `git commit -m \"#{$options[:message]}\"`
+
+    # 5. set git config cilantro.version to the new version
+    `git config cilantro.version #{last_cilantro_commit}`
+    puts "Updated Cilantro: \"#{$options[:message]}\""
   when 'git'
     unless ENV['GIT_DIR'] == "#{ENV['HOME']}/.cilantro.git"
       ENV['GIT_DIR'] = "#{ENV['HOME']}/.cilantro.git"
