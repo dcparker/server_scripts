@@ -160,7 +160,7 @@ when File.exists?("#{directory}/config/#{ENV['RACK_ENV']}.yml")
 else
   {}
 end || {}
-ENV['RACK_ENV'] = $config[:environment] if $config[:environment] && !$options[:manual_environment]
+ENV['RACK_ENV'] = $config[:environment].to_s if $config[:environment] && !$options[:manual_environment]
 
 if ($options[:config] || (!$options[:specified_port] && File.exists?("#{directory}/config/#{ENV['RACK_ENV']}.yml"))) && $action =~ /start/
   if $config.is_a?(Hash)
@@ -190,10 +190,6 @@ def run_app!
     :host => $options[:host],
     :port => $options[:port]
   )
-  # config/cilantro.yml overrides defaults
-  Cilantro.set_options(Cilantro.config)
-  # Commandline specified port overrides config
-  Cilantro.set_options(:port => $options[:port]) if $options[:specified_port]
 
   # Need to add an EM.watch_dir method, to notice files added, modified, or deleted.
   #   EM.watch_file("/tmp/foo", Handler)
@@ -203,7 +199,7 @@ def run_app!
 
   begin
     server = Rack::Handler.get('thin')
-    server.run Cilantro.app, :Host => Cilantro.server_options[:host], :Port => Cilantro.server_options[:port]
+    server.run Cilantro.app, :Host => $options[:host], :Port => $options[:port]
   rescue RuntimeError => e
     if e.to_s == 'no acceptor'
       warn "\n\t*** Can't use port #{$options[:port]}, someone's already there! ***\n"
