@@ -190,6 +190,10 @@ def run_app!
     :host => $options[:host],
     :port => $options[:port]
   )
+  # config/cilantro.yml overrides defaults
+  Cilantro.set_options(Cilantro.config)
+  # Commandline specified port overrides config
+  Cilantro.set_options(:port => $options[:port]) if $options[:specified_port]
 
   # Need to add an EM.watch_dir method, to notice files added, modified, or deleted.
   #   EM.watch_file("/tmp/foo", Handler)
