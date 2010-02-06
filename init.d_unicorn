@@ -33,6 +33,10 @@ for app in $SITES_LOCATION; do
   fi
 done
 
+if [ -f $2 ]; then
+  APPS=$2
+fi
+
 sig () {
   test -s "$app/config/unicorn.pid" && kill -$1 `cat $app/config/unicorn.pid`
 }
