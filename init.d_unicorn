@@ -39,7 +39,7 @@ if [ $# -ge 2 ]; then
 fi
 
 sig () {
-  test -s "$app/config/unicorn.pid" && kill -$1 `cat $app/config/unicorn.pid`
+  test -s "$app/log/unicorn.pid" && kill -$1 `cat $app/log/unicorn.pid`
 }
 
 start_unicorn () {
@@ -47,7 +47,7 @@ start_unicorn () {
 }
 
 oldsig () {
-  test -s "$app/config/unicorn.pid.oldbin" && kill -$1 `cat "$app/config/unicorn.pid.oldbin"`
+  test -s "$app/log/unicorn.pid.oldbin" && kill -$1 `cat "$app/log/unicorn.pid.oldbin"`
 }
  
 case $1 in
