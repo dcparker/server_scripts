@@ -237,8 +237,8 @@ when 'activate'
     config = YAML.load_file(options[:config] || "#{home}/apps/#{domain}/config/production.yml") || {}
     config[:ports] = service_ports
     config[:workers] = service_ports.length
-    File.open("#{home}/apps/#{domain}/config/production.yml", 'w') do |config|
-      config << config.to_yaml
+    File.open("#{home}/apps/#{domain}/config/production.yml", 'w') do |cilantro|
+      cilantro << config.to_yaml
     end
   end
 
