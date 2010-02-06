@@ -34,7 +34,7 @@ for app in $SITES_LOCATION; do
 done
 
 if [ -f $2 ]; then
-  APPS=$2
+  APPS="$2"
 fi
 
 sig () {
