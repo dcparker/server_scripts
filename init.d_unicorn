@@ -43,7 +43,7 @@ sig () {
 }
 
 start_unicorn () {
-  $AS_WWW $UNICORN $app/config/unicorn.conf $app/config.ru
+  $AS_WWW $UNICORN $app/config/unicorn.conf $app/config.ru || true
 }
 
 oldsig () {

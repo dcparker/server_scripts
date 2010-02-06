@@ -236,8 +236,9 @@ when 'activate'
     service_ports = ports
     config = YAML.load_file(options[:config] || "#{home}/apps/#{domain}/config/production.yml") || {}
     config[:ports] = service_ports
-    File.open("#{home}/apps/#{domain}/config/production.yml", 'w') do |cilantro|
-      cilantro << config.to_yaml
+    config[:workers] = service_ports.length
+    File.open("#{home}/apps/#{domain}/config/production.yml", 'w') do |config|
+      config << config.to_yaml
     end
   end
 
@@ -247,10 +248,11 @@ when 'activate'
     system("/etc/init.d/nginx reload")
   # 7) Start services that run this app
     unless options[:nostart]
+      # Any custom pre-start-up script or daemon.
       system("cd #{home}/apps/#{domain}; sudo -u www-data #{home}/apps/#{domain}/app-up") if File.exists?("#{home}/apps/#{domain}/app-up") && Dir.glob("#{home}/apps/#{domain}/log/app-up.pid").empty?
       # Cilantro
       if File.exists?("#{home}/apps/#{domain}/lib/cilantro.rb")
-        system("sudo -u www-data -H cilantro start #{home}/apps/#{domain} --database_config config/database.production.yml") if Dir.glob("#{home}/apps/#{domain}/log/*.pid").empty?
+        system("sudo /etc/init.d/unicorn reload #{home}/apps/#{domain}")
       # Thin
       elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
         system("thin start --config /etc/thin/#{domain}-thin.yml")
@@ -270,7 +272,7 @@ when 'deactivate'
   # 4) Stop any services running this app
     # Cilantro
     if File.exists?("#{home}/apps/#{domain}/lib/cilantro.rb")
-      system("cilantro stop #{home}/apps/#{domain}")
+      system("sudo /etc/init.d/unicorn stop #{home}/apps/#{domain}")
     # Thin
     elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
       system("thin stop --config /etc/thin/#{domain}-thin.yml")
@@ -281,14 +283,14 @@ when 'list'
   puts "Managed Sites:\n\t#{matches.join("\n\t")}"
 when 'status'
   if File.exists?("#{home}/apps/#{domain}/lib/cilantro.rb")
-    system("cilantro status #{home}/apps/#{domain}")
+    system("sudo /etc/init.d/unicorn status #{home}/apps/#{domain}")
   else
     puts "Can't get status for #{domain}."
   end
 when 'start'
   # Cilantro
   if File.exists?("#{home}/apps/#{domain}/lib/cilantro.rb")
-    system("sudo -u www-data -H cilantro start #{home}/apps/#{domain} --database_config config/database.production.yml")
+    system("sudo /etc/init.d/unicorn reload #{home}/apps/#{domain}")
   # Thin
   elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
     system("thin start --config /etc/thin/#{domain}-thin.yml")
@@ -298,7 +300,7 @@ when 'stop'
   system("cd #{home}/apps/#{domain}; sudo -u www-data #{home}/apps/#{domain}/app-down") if File.exists?("#{home}/apps/#{domain}/app-down")
   # Cilantro
   if File.exists?("#{home}/apps/#{domain}/lib/cilantro.rb")
-    system("cilantro stop #{home}/apps/#{domain}")
+    system("sudo /etc/init.d/unicorn stop #{home}/apps/#{domain}")
   # Thin
   elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
     system("thin stop --config /etc/thin/#{domain}-thin.yml")
@@ -307,9 +309,7 @@ when 'restart'
   system("cd #{home}/apps/#{domain}; sudo -u www-data #{home}/apps/#{domain}/app-down") if File.exists?("#{home}/apps/#{domain}/app-down")
   # Cilantro
   if File.exists?("#{home}/apps/#{domain}/lib/cilantro.rb")
-    system("cilantro stop #{home}/apps/#{domain}")
-    sleep 0.5
-    system("sudo -u www-data -H cilantro start #{home}/apps/#{domain} --database_config config/database.production.yml")
+    system("sudo /etc/init.d/unicorn reload #{home}/apps/#{domain}")
   # Thin
   elsif File.exists?("#{home}/SiteConfigs/#{file_domain}-thin.yml")
     system("thin stop --config /etc/thin/#{domain}-thin.yml")
