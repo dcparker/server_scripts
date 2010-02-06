@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-`cp init.d_cilantro /etc/init.d/cilantro`
+`cp init.d_unicorn /etc/init.d/unicorn`
 puts "Installed startup scripts."
 
 `mkdir -p /usr/local/bin`
