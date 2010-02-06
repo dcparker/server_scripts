@@ -1,0 +1,87 @@
+#!/bin/sh
+
+### BEGIN INIT INFO
+# Provides:          cilantro-unicorn
+# Required-Start:    $network
+# Required-Stop:     $network
+# Default-Start:     2 3 4 5 
+# Default-Stop:      0 1 6 
+# Short-Description: Start cilantro sites at boot time [via Unicorn]
+# Description:       Manages many cilantro sites as one package via Unicorn
+### END INIT INFO
+
+# Author: Daniel Parker
+
+set -u
+set -e
+ 
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+AS_WWW="sudo -u www-data -H"
+UNICORN="/usr/bin/unicorn -D -E $RACK_ENV -c"
+SITES_LOCATION=/home/*/apps/*
+RACK_ENV=production
+
+test -x $UNICORN || exit 1
+
+. /lib/lsb/init-functions
+
+APPS=
+for app in $SITES_LOCATION; do
+  if [ -f $app/lib/cilantro.rb ]; then
+    APPS="$APPS $app"
+  fi
+done
+
+sig () {
+  test -s "$app/config/unicorn.pid" && kill -$1 `cat $app/config/unicorn.pid`
+}
+
+start_unicorn () {
+  $AS_WWW $UNICORN $app/config/unicorn.conf $app/config.ru
+}
+
+oldsig () {
+  test -s "$app/config/unicorn.pid.oldbin" && kill -$1 `cat "$app/config/unicorn.pid.oldbin"`
+}
+ 
+case $1 in
+start)
+  log_daemon_msg "Starting cilantro apps [via unicorn]"
+  for app in $APPS; do
+    sig 0 && log_daemon_msg " - Unicorn already running for $app." || (log_daemon_msg " - Starting for $app..." && start_unicorn)
+  done
+  exit 0
+	;;
+stop)
+  log_daemon_msg "Stopping cilantro apps [via unicorn]"
+  for app in $APPS; do
+    sig QUIT && log_daemon_msg " - Stopped for $app." || log_daemon_msg " - Unicorn not running for $app."
+	done
+	exit 0
+	;;
+force-stop)
+  log_daemon_msg "Stopping cilantro apps [via unicorn]"
+  for app in $APPS; do
+    sig TERM && log_daemon_msg " - Stopped for $app." || log_daemon_msg " - Unicorn not running for $app."
+  done
+  exit 0
+	;;
+restart|reload)
+  log_daemon_msg "Reloading cilantro apps [via unicorn]"
+  for app in $APPS; do
+  	sig HUP && log_daemon_msg " - Restarted for $app." || (log_daemon_msg " - Starting for $app..." && start_unicorn)
+  done
+  exit 0
+	;;
+upgrade)
+  log_daemon_msg "Upgrading cilantro apps [via unicorn]"
+  for app in $APPS; do
+  	sig USR2 && sleep 2 && sig 0 && oldsig QUIT && log_daemon_msg " - Upgraded for $app." || (log_daemon_msg " - Starting for $app..." && start_unicorn)
+  done
+  exit 0
+  ;;
+*)
+	log_daemon_msg "Usage: $0 <start|stop|restart|upgrade|force-stop>"
+	exit 1
+	;;
+esac

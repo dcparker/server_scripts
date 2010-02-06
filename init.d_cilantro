@@ -7,18 +7,21 @@
 # Default-Start:     2 3 4 5 
 # Default-Stop:      0 1 6 
 # Short-Description: Start cilantro sites at boot time 
-# Description:       Starts cilantro sites at boot time
+# Description:       Manages many cilantro sites as one package via Unicorn
 ### END INIT INFO
 
 # Author: Daniel Parker
 
+set -u
+set -e
+ 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 AS_WWW="sudo -u www-data -H"
 CILANTRO=/usr/local/bin/cilantro
 SITES_LOCATION=/home/*/apps/*
 RACK_ENV=production
 
-test -x $CILANTRO || exit 0
+test -x $CILANTRO || exit 1
 
 . /lib/lsb/init-functions
 
@@ -69,6 +72,7 @@ stop)
 restart)
   log_daemon_msg "Stopping cilantro apps"
   cilantro_stop
+  log_daemon_msg "Starting cilantro apps"
   cilantro_start
   exit 0
   ;;
