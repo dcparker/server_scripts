@@ -33,7 +33,7 @@ for app in $SITES_LOCATION; do
   fi
 done
 
-if [ -f "$2" ]; then
+if [ -d "$2" ]; then
   APPS="$2"
 fi
 
