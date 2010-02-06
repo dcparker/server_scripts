@@ -18,10 +18,11 @@ set -e
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 AS_WWW="sudo -u www-data -H"
 RACK_ENV=production
-UNICORN="/usr/bin/unicorn -D -E $RACK_ENV -c"
+BIN="/usr/bin/unicorn"
+UNICORN="$BIN -D -E $RACK_ENV -c"
 SITES_LOCATION=/home/*/apps/*
 
-test -x $UNICORN || exit 1
+test -x $BIN || exit 1
 
 . /lib/lsb/init-functions
 
